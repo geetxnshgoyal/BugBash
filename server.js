@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import express from 'express';
 import cors from 'cors';
 import Database from 'better-sqlite3';
@@ -55,7 +56,18 @@ const cleanupSessions = () => {
 setInterval(cleanupSessions, SESSION_TTL_MS).unref?.();
 
 // --- DB ---
-const db = new Database(path.join(__dirname, 'bugbash.db'));
+const resolveDbPath = () => {
+  const configured = process.env.DB_FILE?.trim();
+  if (!configured) return path.join(__dirname, 'bugbash.db');
+  // Allow absolute paths while resolving relative ones against project root
+  return path.isAbsolute(configured) ? configured : path.join(__dirname, configured);
+};
+
+const dbPath = resolveDbPath();
+// Make sure SQLite has a place to create the database file
+fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+
+const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 db.prepare(`
   CREATE TABLE IF NOT EXISTS registrations (
