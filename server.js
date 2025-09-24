@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import express from 'express';
 import cors from 'cors';
-import Database from 'better-sqlite3';
+import admin from 'firebase-admin';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
@@ -55,48 +55,77 @@ const cleanupSessions = () => {
 
 setInterval(cleanupSessions, SESSION_TTL_MS).unref?.();
 
-// --- DB ---
-const resolveDbPath = () => {
-  const configured = process.env.DB_FILE?.trim();
-  if (!configured) return path.join(__dirname, 'bugbash.db');
-  // Allow absolute paths while resolving relative ones against project root
-  return path.isAbsolute(configured) ? configured : path.join(__dirname, configured);
-};
-
-const dbPath = resolveDbPath();
-// Make sure SQLite has a place to create the database file
-fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-
-const db = new Database(dbPath);
-db.pragma('journal_mode = WAL');
-db.prepare(`
-  CREATE TABLE IF NOT EXISTS registrations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    team_name TEXT NOT NULL,
-    leader_name TEXT NOT NULL,
-    leader_email TEXT NOT NULL,
-    members_text TEXT NOT NULL,
-    track TEXT NOT NULL,
-    idea TEXT,
-    project_title TEXT,
-    problem TEXT,
-    solution TEXT,
-    tech_stack TEXT,
-    project_link TEXT,
-    notes TEXT,
-    ip TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
-  )
-`).run();
-
-const ensureColumn = (column, type = 'TEXT') => {
-  try {
-    db.prepare(`ALTER TABLE registrations ADD COLUMN ${column} ${type}`).run();
-  } catch (err) {
-    if (!String(err.message).includes('duplicate column name')) throw err;
+// --- Firebase ---
+const resolveServiceAccount = () => {
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT?.trim();
+  if (raw) {
+    try {
+      return JSON.parse(raw);
+    } catch (err) {
+      try {
+        const decoded = Buffer.from(raw, 'base64').toString('utf8');
+        return JSON.parse(decoded);
+      } catch (decodeErr) {
+        throw new Error('FIREBASE_SERVICE_ACCOUNT is not valid JSON or base64 JSON');
+      }
+    }
   }
+
+  const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim();
+  if (credentialsPath) {
+    const resolved = path.isAbsolute(credentialsPath) ? credentialsPath : path.join(__dirname, credentialsPath);
+    const fileContents = fs.readFileSync(resolved, 'utf8');
+    return JSON.parse(fileContents);
+  }
+
+  return null;
 };
-['project_title','problem','solution','tech_stack','project_link','notes'].forEach(col => ensureColumn(col));
+
+const initializeFirebase = () => {
+  if (admin.apps.length) return admin.app();
+  const serviceAccount = resolveServiceAccount();
+  if (serviceAccount) {
+    return admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+  }
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    return admin.initializeApp({ credential: admin.credential.applicationDefault() });
+  }
+  throw new Error('Firebase credentials not configured. Set FIREBASE_SERVICE_ACCOUNT or GOOGLE_APPLICATION_CREDENTIALS.');
+};
+
+let firestore;
+try {
+  firestore = initializeFirebase().firestore();
+} catch (err) {
+  console.error('Failed to initialize Firebase Admin SDK');
+  console.error(err);
+  process.exit(1);
+}
+
+const FieldValue = admin.firestore.FieldValue;
+const registrationsCollection = firestore.collection(process.env.FIREBASE_REGISTRATIONS_COLLECTION || 'registrations');
+
+const mapRegistration = (doc) => {
+  const data = doc.data() || {};
+  const createdAt = data.created_at || (data.created_at_ts?.toDate ? data.created_at_ts.toDate().toISOString() : '');
+  return {
+    id: doc.id,
+    created_at: createdAt,
+    project_title: data.project_title || data.team_name || '',
+    team_name: data.team_name || '',
+    leader_name: data.leader_name || '',
+    leader_email: data.leader_email || '',
+    track: data.track || '',
+    problem: data.problem || '',
+    solution: data.solution || '',
+    tech_stack: data.tech_stack || '',
+    project_link: data.project_link || '',
+    notes: data.notes || '',
+    members_text: data.members_text || '',
+    idea: data.idea || '',
+    ip: data.ip || ''
+  };
+};
 
 // --- Middleware ---
 app.use(cors());
@@ -111,7 +140,7 @@ app.use(express.static(__dirname, { extensions: ['html'] }));
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 // register
-app.post('/api/register', (req, res) => {
+app.post('/api/register', async (req, res) => {
   const payload = req.body || {};
 
   const leader_name = String(
@@ -150,83 +179,73 @@ app.post('/api/register', (req, res) => {
   }
 
   const leaderEmailNormalized = leaderEmailRaw.toLowerCase();
-  const existing = db.prepare(`SELECT id FROM registrations WHERE lower(leader_email) = ?`).get(leaderEmailNormalized);
-  if (existing) {
-    return res.status(409).json({ ok: false, error: 'email_exists' });
-  }
+  try {
+    const existingSnap = await registrationsCollection
+      .where('leader_email_lower', '==', leaderEmailNormalized)
+      .limit(1)
+      .get();
+    if (!existingSnap.empty) {
+      return res.status(409).json({ ok: false, error: 'email_exists' });
+    }
 
-  if (!problemStatement) problemStatement = 'Not specified yet';
+    if (!problemStatement) problemStatement = 'Not specified yet';
 
-  const ideaParts = [`Problem: ${problemStatement}`];
-  if (solutionOverview) ideaParts.push(`Solution: ${solutionOverview}`);
-  const ideaCombined = ideaParts.join('\n');
-  const membersText = [
-    techStack ? `Tech stack: ${techStack}` : '',
-    notesRaw ? `Notes: ${notesRaw}` : ''
-  ].filter(Boolean).join('\n') || 'Not provided';
+    const ideaParts = [`Problem: ${problemStatement}`];
+    if (solutionOverview) ideaParts.push(`Solution: ${solutionOverview}`);
+    const ideaCombined = ideaParts.join('\n');
+    const membersText = [
+      techStack ? `Tech stack: ${techStack}` : '',
+      notesRaw ? `Notes: ${notesRaw}` : ''
+    ].filter(Boolean).join('\n') || 'Not provided';
 
-  const stmt = db.prepare(`
-    INSERT INTO registrations (
-      team_name,
+    const docRef = registrationsCollection.doc();
+    const createdAtIso = new Date().toISOString();
+    await docRef.set({
+      team_name: projectTitle,
       leader_name,
-      leader_email,
-      members_text,
-      track,
-      idea,
-      ip,
-      project_title,
-      problem,
-      solution,
-      tech_stack,
-      project_link,
-      notes
-    ) VALUES (
-      @project_title,
-      @leader_name,
-      @leader_email,
-      @members_text,
-      @track,
-      @idea,
-      @ip,
-      @project_title,
-      @problem,
-      @solution,
-      @tech_stack,
-      @project_link,
-      @notes
-    )
-  `);
+      leader_email: leaderEmailRaw,
+      leader_email_lower: leaderEmailNormalized,
+      members_text: membersText,
+      track: trackValue,
+      idea: ideaCombined,
+      ip: req.headers['x-forwarded-for']?.toString() || req.socket.remoteAddress || '',
+      project_title: projectTitle,
+      problem: problemStatement,
+      solution: solutionOverview,
+      tech_stack: techStack,
+      project_link: link,
+      notes: notesRaw,
+      created_at: createdAtIso,
+      created_at_ts: FieldValue.serverTimestamp()
+    });
 
-  const info = stmt.run({
-    project_title: projectTitle,
-    leader_name,
-    leader_email: leaderEmailRaw,
-    members_text: membersText,
-    track: trackValue,
-    idea: ideaCombined,
-    ip: req.headers['x-forwarded-for']?.toString() || req.socket.remoteAddress || '',
-    problem: problemStatement,
-    solution: solutionOverview,
-    tech_stack: techStack,
-    project_link: link,
-    notes: notesRaw
-  });
-
-  return res.status(201).json({ ok: true, id: info.lastInsertRowid });
+    return res.status(201).json({ ok: true, id: docRef.id });
+  } catch (err) {
+    console.error('Failed to save registration', err);
+    return res.status(500).json({ ok: false, error: 'server_error' });
+  }
 });
 
 // CSV
-app.get('/api/registrations.csv', adminAuth, (_req, res) => {
-  const rows = db.prepare(`SELECT * FROM registrations ORDER BY created_at DESC`).all();
-  const headers = [
-    'id','created_at','project_title','team_name','leader_name','leader_email','track',
-    'problem','solution','tech_stack','project_link','notes','members_text','idea','ip'
-  ];
-  const esc = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
-  const csv = [headers.join(',')].concat(rows.map(r => headers.map(h => esc(r[h])).join(','))).join('\n');
-  res.setHeader('Content-Type','text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition','attachment; filename="registrations.csv"');
-  res.send(csv);
+app.get('/api/registrations.csv', adminAuth, async (_req, res) => {
+  try {
+    const snapshot = await registrationsCollection.orderBy('created_at', 'desc').get();
+    const rows = snapshot.docs.map(mapRegistration);
+    const headers = [
+      'id','created_at','project_title','team_name','leader_name','leader_email','track',
+      'problem','solution','tech_stack','project_link','notes','members_text','idea','ip'
+    ];
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const csv = [headers.join(',')]
+      .concat(rows.map((row) => headers.map((h) => esc(row[h])).join(',')))
+      .join('\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="registrations.csv"');
+    res.send(csv);
+  } catch (err) {
+    console.error('Failed to produce registrations CSV', err);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
 });
 
 // --- Admin API (header key) ---
@@ -276,9 +295,15 @@ app.post('/api/admin/logout', (req, res) => {
   }
   res.json({ ok:true });
 });
-app.get('/api/admin/registrations', adminAuth, (_req, res) => {
-  const rows = db.prepare(`SELECT * FROM registrations ORDER BY created_at DESC`).all();
-  res.json(rows);
+app.get('/api/admin/registrations', adminAuth, async (_req, res) => {
+  try {
+    const snapshot = await registrationsCollection.orderBy('created_at', 'desc').get();
+    const rows = snapshot.docs.map(mapRegistration);
+    res.json(rows);
+  } catch (err) {
+    console.error('Failed to load registrations for admin', err);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
 });
 
 // --- Admin page and index fallback ---
