@@ -1,0 +1,66 @@
+0 verbose cli /usr/local/bin/node /usr/local/bin/npm
+1 info using npm@10.9.3
+2 info using node@v22.19.0
+3 silly config load:file:/usr/local/lib/node_modules/npm/npmrc
+4 silly config load:file:/Users/geetanshgoyal/Desktop/Bug_Bash/.npmrc
+5 silly config load:file:/usr/local/etc/npmrc
+6 verbose title npm rebuild better-sqlite3
+7 verbose argv "rebuild" "better-sqlite3"
+8 verbose logfile logs-max:10 dir:/Users/geetanshgoyal/Desktop/Bug_Bash/.npm/_logs/2025-09-24T04_56_24_148Z-
+9 verbose logfile /Users/geetanshgoyal/Desktop/Bug_Bash/.npm/_logs/2025-09-24T04_56_24_148Z-debug-0.log
+10 silly logfile done cleaning log files
+11 silly packumentCache heap:4345298944 maxSize:1086324736 maxEntrySize:543162368
+12 http fetch GET https://registry.npmjs.org/npm attempt 1 failed with ENOTFOUND
+13 verbose shrinkwrap failed to load node_modules/.package-lock.json out of date, updated: node_modules/better-sqlite3
+14 info run better-sqlite3@12.4.1 install node_modules/better-sqlite3 prebuild-install || node-gyp rebuild --release
+15 info run better-sqlite3@12.4.1 install { code: 1, signal: null }
+16 verbose stack Error: command failed
+16 verbose stack     at promiseSpawn (/usr/local/lib/node_modules/npm/node_modules/@npmcli/promise-spawn/lib/index.js:22:22)
+16 verbose stack     at spawnWithShell (/usr/local/lib/node_modules/npm/node_modules/@npmcli/promise-spawn/lib/index.js:124:10)
+16 verbose stack     at promiseSpawn (/usr/local/lib/node_modules/npm/node_modules/@npmcli/promise-spawn/lib/index.js:12:12)
+16 verbose stack     at runScriptPkg (/usr/local/lib/node_modules/npm/node_modules/@npmcli/run-script/lib/run-script-pkg.js:79:13)
+16 verbose stack     at runScript (/usr/local/lib/node_modules/npm/node_modules/@npmcli/run-script/lib/run-script.js:9:12)
+16 verbose stack     at /usr/local/lib/node_modules/npm/node_modules/@npmcli/arborist/lib/arborist/rebuild.js:329:17
+16 verbose stack     at run (/usr/local/lib/node_modules/npm/node_modules/promise-call-limit/dist/commonjs/index.js:67:22)
+16 verbose stack     at /usr/local/lib/node_modules/npm/node_modules/promise-call-limit/dist/commonjs/index.js:84:9
+16 verbose stack     at new Promise (<anonymous>)
+16 verbose stack     at callLimit (/usr/local/lib/node_modules/npm/node_modules/promise-call-limit/dist/commonjs/index.js:35:69)
+17 verbose pkgid better-sqlite3@12.4.1
+18 error code 1
+19 error path /Users/geetanshgoyal/Desktop/Bug_Bash/node_modules/better-sqlite3
+20 error command failed
+21 error command sh -c prebuild-install || node-gyp rebuild --release
+22 error prebuild-install warn install getaddrinfo ENOTFOUND github.com
+22 error gyp info it worked if it ends with ok
+22 error gyp info using node-gyp@11.2.0
+22 error gyp info using node@22.19.0 | darwin | arm64
+22 error gyp info find Python using Python version 3.9.6 found at "/Applications/Xcode.app/Contents/Developer/usr/bin/python3"
+22 error gyp http GET https://nodejs.org/download/release/v22.19.0/node-v22.19.0-headers.tar.gz
+22 error gyp http fetch GET https://nodejs.org/download/release/v22.19.0/node-v22.19.0-headers.tar.gz attempt 1 failed with ENOTFOUND
+22 error gyp WARN install got an error, rolling back install
+22 error gyp ERR! configure error 
+22 error gyp ERR! stack Error: This is most likely not a problem with node-gyp or the package itself and
+22 error gyp ERR! stack is related to network connectivity. In most cases you are behind a proxy or have bad
+22 error gyp ERR! stack network settings.
+22 error gyp ERR! stack at go (/usr/local/lib/node_modules/npm/node_modules/node-gyp/lib/install.js:244:21)
+22 error gyp ERR! stack at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+22 error gyp ERR! stack at async install (/usr/local/lib/node_modules/npm/node_modules/node-gyp/lib/install.js:63:18)
+22 error gyp ERR! stack at async getNodeDir (/usr/local/lib/node_modules/npm/node_modules/node-gyp/lib/configure.js:79:7)
+22 error gyp ERR! stack at async run (/usr/local/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js:81:18)
+22 error gyp ERR! System Darwin 25.0.0
+22 error gyp ERR! command "/usr/local/bin/node" "/usr/local/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js" "rebuild" "--release"
+22 error gyp ERR! cwd /Users/geetanshgoyal/Desktop/Bug_Bash/node_modules/better-sqlite3
+22 error gyp ERR! node -v v22.19.0
+22 error gyp ERR! node-gyp -v v11.2.0
+22 error gyp ERR! not ok
+23 silly unfinished npm timer build 1758689784477
+24 silly unfinished npm timer build:deps 1758689784477
+25 silly unfinished npm timer build:run:install 1758689784477
+26 silly unfinished npm timer build:run:install:node_modules/better-sqlite3 1758689784477
+27 verbose cwd /Users/geetanshgoyal/Desktop/Bug_Bash
+28 verbose os Darwin 25.0.0
+29 verbose node v22.19.0
+30 verbose npm  v10.9.3
+31 verbose exit 1
+32 verbose code 1
+33 error A complete log of this run can be found in: /Users/geetanshgoyal/Desktop/Bug_Bash/.npm/_logs/2025-09-24T04_56_24_148Z-debug-0.log

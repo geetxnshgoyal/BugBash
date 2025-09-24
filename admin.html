@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Bug Bash — Admin</title>
+<style>
+  :root{--bg1:#0f1720;--bg2:#0b1020;--accent:#7be04a;--glass:rgba(255,255,255,0.08);--muted:#9aa6bf;--white:#f7f8fa;--shadow:0 12px 30px rgba(2,6,23,0.55);--danger:#f87171}
+  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:
+    radial-gradient(1200px 600px at 12% 8%, rgba(123,224,74,0.06), transparent),
+    linear-gradient(180deg,var(--bg1),var(--bg2));color:var(--white)}
+  #bg-canvas{position:fixed;inset:0;pointer-events:none;opacity:.7;z-index:0}
+  .wrap{position:relative;z-index:2;max-width:1100px;margin:36px auto;padding:0 24px 48px}
+  header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+  header h1{font-size:26px;margin:0;font-weight:700;letter-spacing:.4px}
+  header a{color:var(--accent);text-decoration:none;font-size:14px}
+  .panel{position:relative;background:linear-gradient(180deg,var(--glass),transparent);border-radius:16px;padding:28px;box-shadow:var(--shadow);backdrop-filter:blur(8px);overflow:hidden}
+  .panel::after{content:'';position:absolute;inset:-35%;background:radial-gradient(circle,rgba(123,224,74,0.12) 0,rgba(123,224,74,0) 60%);opacity:0;animation:panel-glow 6.6s ease-in-out infinite;pointer-events:none}
+  #login-card{max-width:420px;margin:0 auto}
+  label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted);margin-bottom:16px}
+  input[type=password]{padding:11px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.14);
+    background:rgba(9,15,28,0.55);color:var(--white);font-size:15px}
+  input[type=password]:focus{outline:2px solid rgba(123,224,74,0.55);outline-offset:1px}
+  button{background:var(--accent);color:#061217;padding:11px 16px;border-radius:10px;border:none;font-weight:600;
+    cursor:pointer;transition:transform .2s ease,box-shadow .2s ease;font-size:15px;box-shadow:0 8px 20px rgba(123,224,74,0.16)}
+  button:hover{transform:translateY(-1px);box-shadow:0 12px 26px rgba(123,224,74,0.22)}
+  button.ghost{background:transparent;color:var(--white);border:1px solid rgba(255,255,255,0.18);box-shadow:none}
+  .status{font-size:13px;color:var(--muted);margin-top:12px;min-height:18px}
+  .status.error{color:var(--danger)}
+  #dashboard{display:flex;flex-direction:column;gap:18px}
+  .toolbar{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;align-items:center}
+  .toolbar strong{font-size:18px}
+  .toolbar-actions{display:flex;gap:12px;flex-wrap:wrap}
+  .toolbar-actions button,.toolbar-actions a{flex:0 0 auto}
+  .toolbar-actions a{display:inline-flex;align-items:center;justify-content:center;padding:11px 16px;border-radius:10px;text-decoration:none;font-weight:600;transition:transform .2s ease,box-shadow .2s ease}
+  .toolbar-actions a:hover{transform:translateY(-1px);box-shadow:0 12px 26px rgba(123,224,74,0.22)}
+  .toolbar-actions a.ghost{background:transparent;color:var(--white);border:1px solid rgba(255,255,255,0.18)}
+  .table-wrap{overflow-x:auto;border-radius:14px;border:1px solid rgba(255,255,255,0.08)}
+  table{width:100%;border-collapse:collapse;min-width:920px;background:rgba(9,14,25,0.55);backdrop-filter:blur(4px)}
+  th,td{border-bottom:1px solid rgba(255,255,255,0.06);padding:12px 14px;text-align:left;font-size:14px;vertical-align:top}
+  th{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:600}
+  tbody tr:hover{background:rgba(123,224,74,0.06)}
+  .empty{padding:32px;text-align:center;color:var(--muted)}
+  .pulse-btn{position:relative;overflow:hidden}
+  .pulse-btn::after{content:'';position:absolute;inset:0;border-radius:inherit;border:1px solid rgba(123,224,74,0.45);opacity:0;transform:scale(0.7);animation:ring 4.8s linear infinite}
+  @media(max-width:720px){header{flex-direction:column;align-items:flex-start;gap:12px}}
+  @keyframes panel-glow{0%,100%{opacity:0;transform:scale(0.75)}40%{opacity:.32;transform:scale(1)}}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  @keyframes ring{0%{opacity:.55;transform:scale(0.7)}60%{opacity:0;transform:scale(1.4)}100%{opacity:0;transform:scale(1.6)}}
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<div class="wrap">
+  <header>
+    <h1>Bug Bash Admin</h1>
+    <a href="/">&larr; Back to site</a>
+  </header>
+
+  <section id="login-card" class="panel">
+    <h2 style="margin:0 0 14px">Admin login</h2>
+    <p style="margin:0 0 20px;color:var(--muted);font-size:14px">Paste the admin access token configured on the server.</p>
+    <form id="loginForm">
+      <label>Access token
+        <input id="adminToken" type="password" autocomplete="off" required placeholder="••••••">
+      </label>
+      <button type="submit">Sign in</button>
+    </form>
+    <div id="loginStatus" class="status"></div>
+  </section>
+
+  <section id="dashboard" class="panel" hidden>
+    <div class="toolbar">
+      <div>
+        <strong id="submissionCount">0 registrations</strong>
+        <div id="status" class="status" style="margin-top:4px"></div>
+      </div>
+      <div class="toolbar-actions">
+        <button id="refreshBtn" class="pulse-btn" type="button">Refresh</button>
+        <button id="csvBtn" class="ghost pulse-btn" type="button">Download CSV</button>
+        <button id="logoutBtn" class="ghost" type="button">Log out</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="regTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Submitted</th>
+            <th>Participant</th>
+            <th>Email</th>
+            <th>Track</th>
+            <th>Project title</th>
+            <th>Problem</th>
+            <th>Solution</th>
+            <th>Tech stack</th>
+            <th>Notes</th>
+            <th>Link</th>
+            <th>IP</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div id="emptyState" class="empty" hidden>No registrations yet.</div>
+    </div>
+  </section>
+</div>
+<script>
+/* background particles */
+(()=>{
+  const canvas=document.getElementById('bg-canvas');
+  if(!canvas) return;
+  const ctx=canvas.getContext('2d');
+  let width=canvas.width=innerWidth;
+  let height=canvas.height=innerHeight;
+  const particles=[];
+  const pulses=[];
+
+  const random=(min,max)=>Math.random()*(max-min)+min;
+
+  const rebuild=()=>{
+    const count=Math.max(35,Math.floor((width*height)/70000));
+    particles.length=0;
+    for(let i=0;i<count;i++){
+      particles.push({
+        x:random(0,width),
+        y:random(0,height),
+        r:random(.6,2.6),
+        vx:random(-.35,.55),
+        vy:random(-.25,.4)
+      });
+    }
+    const pulseCount=Math.max(4,Math.floor(width/320));
+    pulses.length=0;
+    for(let i=0;i<pulseCount;i++){
+      pulses.push({
+        x:random(0,width),
+        y:random(0,height),
+        radius:random(18,70),
+        alpha:random(0.04,0.14),
+        speed:random(0.32,0.5)
+      });
+    }
+  };
+
+  const resetPulse=pulse=>{
+    pulse.x=random(0,width);
+    pulse.y=random(0,height);
+    pulse.radius=random(16,60);
+    pulse.alpha=random(0.04,0.14);
+    pulse.speed=random(0.3,0.5);
+  };
+
+  const resize=()=>{
+    width=canvas.width=innerWidth;
+    height=canvas.height=innerHeight;
+    rebuild();
+  };
+  addEventListener('resize',resize);
+
+  const render=()=>{
+    ctx.clearRect(0,0,width,height);
+    const gradient=ctx.createLinearGradient(0,0,width,height);
+    gradient.addColorStop(0,'rgba(11,16,32,0.18)');
+    gradient.addColorStop(1,'rgba(2,4,10,0.24)');
+    ctx.fillStyle=gradient;
+    ctx.fillRect(0,0,width,height);
+
+    for(const pulse of pulses){
+      pulse.radius+=pulse.speed;
+      pulse.alpha-=0.0012;
+      if(pulse.alpha<=0) resetPulse(pulse);
+      const grd=ctx.createRadialGradient(pulse.x,pulse.y,0,pulse.x,pulse.y,pulse.radius);
+      grd.addColorStop(0,`rgba(123,224,74,${pulse.alpha})`);
+      grd.addColorStop(1,'rgba(123,224,74,0)');
+      ctx.fillStyle=grd;
+      ctx.beginPath();
+      ctx.arc(pulse.x,pulse.y,pulse.radius,0,Math.PI*2);
+      ctx.fill();
+    }
+
+    for(const p of particles){
+      p.x+=p.vx;
+      p.y+=p.vy;
+      if(p.x<-20)p.x=width+20;
+      if(p.x>width+20)p.x=-20;
+      if(p.y<-20)p.y=height+20;
+      if(p.y>height+20)p.y=-20;
+      ctx.beginPath();
+      ctx.fillStyle=`rgba(123,224,74,${0.065+p.r/6})`;
+      ctx.shadowColor='rgba(123,224,74,0.22)';
+      ctx.shadowBlur=5;
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.shadowBlur=0;
+
+    const limit=Math.min(particles.length,130);
+    for(let i=0;i<limit;i++){
+      const a=particles[i];
+      for(let j=i+1;j<limit;j++){
+        const b=particles[j];
+        const dx=a.x-b.x;
+        const dy=a.y-b.y;
+        const distSq=dx*dx+dy*dy;
+        if(distSq<8500){
+          ctx.beginPath();
+          ctx.strokeStyle=`rgba(123,224,74,${0.0025+(8500-distSq)/10500})`;
+          ctx.lineWidth=0.7;
+          ctx.moveTo(a.x,a.y);
+          ctx.lineTo(b.x,b.y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    requestAnimationFrame(render);
+  };
+
+  rebuild();
+  render();
+})();
+
+const loginCard=document.getElementById('login-card');
+const dashboard=document.getElementById('dashboard');
+const loginForm=document.getElementById('loginForm');
+const adminTokenInput=document.getElementById('adminToken');
+const loginStatus=document.getElementById('loginStatus');
+const submissionCount=document.getElementById('submissionCount');
+const statusEl=document.getElementById('status');
+const tableBody=document.querySelector('#regTable tbody');
+const emptyState=document.getElementById('emptyState');
+const refreshBtn=document.getElementById('refreshBtn');
+const logoutBtn=document.getElementById('logoutBtn');
+const csvBtn=document.getElementById('csvBtn');
+
+const STORAGE_KEY='bugbash-admin-token';
+let activeToken='';
+
+const setStatus=(el,text,isError=false)=>{
+  el.textContent=text||'';
+  el.classList.toggle('error',Boolean(isError));
+};
+
+const formatDate=(value)=>{
+  if(!value) return '';
+  const parsed=Date.parse(value+'Z');
+  if(Number.isNaN(parsed)) return value;
+  return new Date(parsed).toLocaleString();
+};
+
+const escapeHtml=(txt)=>String(txt ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+const formatMultiLine=(txt)=>escapeHtml(txt).replace(/\n/g,'<br>');
+
+const renderRows=(rows=[])=>{
+  tableBody.innerHTML='';
+  if(!rows.length){
+    emptyState.hidden=false;
+    return;
+  }
+  emptyState.hidden=true;
+  tableBody.innerHTML=rows.map(row=>{
+    const linkCell=row.project_link?`<a href="${escapeHtml(row.project_link)}" target="_blank" rel="noopener">Open</a>`:'';
+    const created=formatDate(row.created_at||'');
+    return `<tr>
+      <td>${row.id}</td>
+      <td>${escapeHtml(created)}</td>
+      <td>${escapeHtml(row.leader_name||'')}</td>
+      <td>${escapeHtml(row.leader_email||'')}</td>
+      <td>${escapeHtml(row.track||'')}</td>
+      <td>${escapeHtml(row.project_title||row.team_name||'')}</td>
+      <td>${formatMultiLine(row.problem||'')}</td>
+      <td>${formatMultiLine(row.solution||'')}</td>
+      <td>${formatMultiLine(row.tech_stack||row.members_text||'')}</td>
+      <td>${formatMultiLine(row.notes||'')}</td>
+      <td>${linkCell}</td>
+      <td>${escapeHtml(row.ip||'')}</td>
+    </tr>`;
+  }).join('');
+};
+
+const authHeaders=()=>activeToken?{Authorization:`Bearer ${activeToken}`}:{ };
+
+const resetToLogin=(message='',isError=false)=>{
+  sessionStorage.removeItem(STORAGE_KEY);
+  activeToken='';
+  dashboard.hidden=true;
+  loginCard.hidden=false;
+  tableBody.innerHTML='';
+  emptyState.hidden=true;
+  submissionCount.textContent='0 registrations';
+  setStatus(statusEl,'');
+  setStatus(loginStatus,message,isError);
+};
+
+const fetchRegistrations=async()=>{
+  if(!activeToken){
+    resetToLogin('Session expired. Please sign in again.',true);
+    return false;
+  }
+  setStatus(statusEl,'Loading...');
+  try{
+    const res=await fetch('/api/admin/registrations',{headers:authHeaders()});
+    if(res.status===401){
+      resetToLogin('Session expired. Please sign in again.',true);
+      return false;
+    }
+    if(!res.ok){
+      throw new Error('Request failed');
+    }
+    const data=await res.json();
+    submissionCount.textContent=`${data.length} registration${data.length===1?'':'s'}`;
+    setStatus(statusEl,data.length?`Last updated ${new Date().toLocaleTimeString()}`:'');
+    setStatus(loginStatus,'');
+    renderRows(data);
+    return true;
+  }catch(err){
+    console.error(err);
+    setStatus(statusEl,'Failed to load registrations',true);
+    return false;
+  }
+};
+
+const enterDashboard=async()=>{
+  const success=await fetchRegistrations();
+  if(success){
+    loginCard.hidden=true;
+    dashboard.hidden=false;
+  }
+};
+
+loginForm.addEventListener('submit',async(e)=>{
+  e.preventDefault();
+  const suppliedToken=adminTokenInput.value.trim();
+  if(!suppliedToken){
+    setStatus(loginStatus,'Enter the access token',true);
+    return;
+  }
+  setStatus(loginStatus,'Verifying...');
+  try{
+    const res=await fetch('/api/admin/login',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token:suppliedToken})
+    });
+    const payload=await res.json().catch(()=>null);
+    if(!res.ok||!payload?.ok||!payload.token){
+      const errKey=payload?.error;
+      const messages={
+        invalid_token:'Invalid token. Try again.',
+        missing_token:'Enter the access token.',
+        admin_credentials_not_set:'Admin token not configured on server.'
+      };
+      setStatus(loginStatus,messages[errKey]||'Login failed.',true);
+      return;
+    }
+    activeToken=payload.token;
+    sessionStorage.setItem(STORAGE_KEY,activeToken);
+    adminTokenInput.value='';
+    setStatus(loginStatus,'');
+    await enterDashboard();
+  }catch(err){
+    console.error(err);
+    setStatus(loginStatus,'Login failed. Try again.',true);
+  }
+});
+
+refreshBtn.addEventListener('click',async()=>{
+  await fetchRegistrations();
+});
+
+csvBtn.addEventListener('click',async()=>{
+  if(!activeToken){
+    resetToLogin('Session expired. Please sign in again.',true);
+    return;
+  }
+  setStatus(statusEl,'Preparing CSV...');
+  try{
+    const res=await fetch('/api/registrations.csv',{headers:authHeaders()});
+    if(res.status===401){
+      resetToLogin('Session expired. Please sign in again.',true);
+      return;
+    }
+    if(!res.ok){
+      throw new Error('Request failed');
+    }
+    const blob=await res.blob();
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('a');
+    link.href=url;
+    link.download='registrations.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    setStatus(statusEl,'CSV downloaded');
+  }catch(err){
+    console.error(err);
+    setStatus(statusEl,'Failed to download CSV',true);
+  }
+});
+
+logoutBtn.addEventListener('click',async()=>{
+  if(activeToken){
+    try{
+      await fetch('/api/admin/logout',{method:'POST',headers:authHeaders()});
+    }catch(err){
+      console.warn('Logout request failed',err);
+    }
+  }
+  resetToLogin('Logged out.');
+});
+
+const saved=sessionStorage.getItem(STORAGE_KEY);
+if(saved){
+  activeToken=saved;
+  enterDashboard().catch(()=>resetToLogin());
+}
+</script>
+</body>
+</html>

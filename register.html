@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Register — Bug Bash 2025</title>
+<meta name="description" content="Register for Bug Bash 2025 at SVYASA Bengaluru. Share your project idea, tools, and contact details.">
+<style>
+  :root{--bg1:#0f1720;--bg2:#0b1020;--accent:#7be04a;--glass:rgba(255,255,255,0.06);
+    --muted:#97a0ad;--glass2:rgba(255,255,255,0.03);--white:#f7f8fa;--shadow:0 12px 30px rgba(2,6,23,0.6);
+    --mono:'Segoe UI',Roboto,Helvetica,Arial,system-ui}
+  html,body{height:100%;margin:0;font-family:var(--mono);background:
+    radial-gradient(1200px 600px at 10% 10%, rgba(123,224,74,0.03), transparent),
+    linear-gradient(180deg,var(--bg1),var(--bg2));color:var(--white)}
+  #bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.65}
+  .wrap{position:relative;z-index:2;max-width:1080px;margin:32px auto;padding:28px}
+  [data-animate]{opacity:0;transform:translateY(28px);transition:opacity .7s ease,transform .7s ease;will-change:opacity,transform}
+  [data-animate].is-visible{opacity:1;transform:translateY(0)}
+  a{color:var(--accent)}
+  header{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:8px 0 24px}
+  .brand{font-weight:800;font-size:20px;letter-spacing:.6px}
+  .back-link{color:var(--muted);text-decoration:none;font-size:14px;display:inline-flex;align-items:center;gap:6px}
+  .panel{position:relative;background:linear-gradient(180deg,var(--glass),transparent);padding:28px;border-radius:14px;box-shadow:var(--shadow);backdrop-filter:blur(6px);overflow:hidden}
+  .panel::after{content:'';position:absolute;inset:-30%;background:radial-gradient(circle at center,rgba(123,224,74,0.12) 0,rgba(123,224,74,0) 60%);opacity:0;animation:panel-glow 7s ease-in-out infinite;pointer-events:none}
+  .hero{display:grid;grid-template-columns:360px 1fr;gap:32px;align-items:flex-start}
+  @media(max-width:980px){.hero{grid-template-columns:1fr;}}
+  .title{font-size:36px;margin:0 0 10px}
+  .glitch{position:relative;display:inline-block;font-weight:900;color:var(--white);filter:drop-shadow(0 8px 30px rgba(0,0,0,0.6))}
+  .glitch::before,.glitch::after{content:attr(data-text);position:absolute;left:0;top:0;opacity:.6;mix-blend-mode:screen}
+  .glitch::before{color:#ff3b81;transform:translate(4px,-2px);clip-path:polygon(0 0,100% 0,100% 45%,0 45%);animation:glitch-top .9s linear infinite}
+  .glitch::after{color:#33c2ff;transform:translate(-5px,3px);clip-path:polygon(0 55%,100% 55%,100% 100%,0 100%);animation:glitch-bottom 1.2s linear infinite}
+  .lead{color:var(--muted);margin:0 0 24px;font-size:16px}
+  .checklist{list-style:disc;margin:16px 0 0 20px;padding:0;display:grid;gap:10px;color:var(--muted);font-size:14px}
+  label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted);margin-bottom:14px}
+  input,select,textarea{padding:11px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);
+    background:rgba(6,18,23,0.45);color:var(--white);font-size:15px;font-family:inherit}
+  input:focus,select:focus,textarea:focus{outline:2px solid rgba(123,224,74,0.55);outline-offset:1px}
+  textarea{resize:vertical;min-height:96px}
+  form .field-row{display:grid;gap:16px}
+  @media(min-width:720px){form .field-row.two{grid-template-columns:1fr 1fr}}
+  .btn{background:var(--accent);color:#061217;padding:12px 18px;border-radius:10px;font-weight:700;text-decoration:none;display:inline-block;box-shadow:0 8px 20px rgba(123,224,74,0.12);transition:transform .2s ease,box-shadow .2s ease;border:none;cursor:pointer;font-size:15px}
+  .btn:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(123,224,74,0.22)}
+  .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.16);color:var(--white)}
+  .form-actions{display:flex;gap:12px;margin-top:14px;flex-wrap:wrap}
+  .form-actions .btn{flex:1 0 180px;text-align:center}
+  .note{font-size:13px;color:var(--muted);margin-top:10px}
+  .note.note--success{color:var(--accent)}
+  .note.note--error{color:#fca5a5}
+  footer{text-align:center;color:var(--muted);font-size:13px;margin-top:48px;padding:12px}
+  .floating-bug{position:fixed;bottom:28px;right:28px;width:60px;height:60px;display:flex;
+    align-items:center;justify-content:center;background:linear-gradient(180deg,var(--glass),transparent);
+    border:1px solid rgba(255,255,255,0.12);border-radius:50%;box-shadow:var(--shadow);
+    backdrop-filter:blur(6px);z-index:3;transition:transform .2s ease,box-shadow .2s ease;animation:bob 4.4s ease-in-out infinite .6s,ring 5.4s linear infinite}
+  .floating-bug:hover{transform:translateY(-2px);box-shadow:0 14px 32px rgba(2,6,23,0.7)}
+  .floating-bug img{width:38px;height:38px;display:block}
+  @keyframes panel-glow{0%,100%{opacity:0;transform:scale(0.7)}40%{opacity:.35;transform:scale(1)}}
+  @keyframes glitch-top{0%{transform:translate(4px,-2px)}50%{transform:translate(2px,1px)}100%{transform:translate(4px,-2px)}}
+  @keyframes glitch-bottom{0%{transform:translate(-5px,3px)}50%{transform:translate(-2px,6px)}100%{transform:translate(-5px,3px)}}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  @keyframes ring{0%{box-shadow:0 18px 34px rgba(123,224,74,0.08),0 0 0 0 rgba(123,224,74,0.15)}70%{box-shadow:0 18px 34px rgba(123,224,74,0.18),0 0 0 14px rgba(123,224,74,0)}100%{box-shadow:0 18px 34px rgba(123,224,74,0.08),0 0 0 0 rgba(123,224,74,0)}}
+  @media(prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
+      transition-duration:.01ms!important;scroll-behavior:auto!important}
+  }
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<div class="wrap">
+  <header>
+    <div class="brand" data-animate>BUG BASH <span style="color:var(--accent)">2025</span></div>
+    <a class="back-link" href="/" data-animate>&larr; Back to homepage</a>
+  </header>
+  <main class="hero">
+    <section class="panel" data-animate>
+      <h1 class="title"><span class="glitch" data-text="Tell us about your build">Tell us about your build</span></h1>
+      <p class="lead">We review every submission, pair up teams where needed, and send you logistics details before kickoff. Share enough context so mentors can support you from the get-go.</p>
+      <ul class="checklist">
+        <li>Describe the problem you want to solve and your proposed approach.</li>
+        <li>List technologies, APIs, or datasets you expect to use.</li>
+        <li>Drop any relevant GitHub/portfolio links so we know your style.</li>
+      </ul>
+      <p class="note" style="margin-top:18px">Need help? Email <a href="mailto:contact@bugbash.me">contact@bugbash.me</a> or call +91&nbsp;96942&nbsp;41206.</p>
+    </section>
+
+    <section class="panel" data-animate>
+      <form id="regForm" novalidate>
+        <div class="field-row two">
+          <label>Full name
+            <input name="full_name" placeholder="Full name" autocomplete="name" required>
+          </label>
+          <label>Email
+            <input type="email" name="email" placeholder="you@example.com" autocomplete="email" required>
+          </label>
+        </div>
+        <div class="field-row two">
+          <label>Preferred track
+            <select name="track" required>
+              <option value="">Select a track</option>
+              <option>AI for Good</option>
+              <option>Smart Campus</option>
+              <option>FinTech</option>
+              <option>Open Innovation</option>
+            </select>
+          </label>
+          <label>Project title
+            <input name="project_title" placeholder="Working title" required>
+          </label>
+        </div>
+        <label>Problem you want to solve
+          <textarea name="problem" placeholder="What challenge are you tackling?" required></textarea>
+        </label>
+        <label>Proposed solution overview <small class="note" style="margin:0">(optional)</small>
+          <textarea name="solution" placeholder="How will you approach it?" rows="3"></textarea>
+        </label>
+        <div class="field-row two">
+          <label>Tech stack <small class="note" style="margin:0">(optional)</small>
+            <input name="tech_stack" placeholder="Frameworks, tools, APIs">
+          </label>
+          <label>Project or portfolio link <small class="note" style="margin:0">(optional)</small>
+            <input type="url" name="project_link" placeholder="https://">
+          </label>
+        </div>
+        <label>Additional notes for organizers <small class="note" style="margin:0">(optional)</small>
+          <textarea name="notes" placeholder="Dietary needs, travel info, accessibility, etc." rows="2"></textarea>
+        </label>
+        <div class="form-actions">
+          <button class="btn" type="submit">Submit registration</button>
+          <a class="btn ghost" href="/">Cancel</a>
+        </div>
+        <div id="formMsg" class="note" role="status" aria-live="polite" hidden></div>
+      </form>
+    </section>
+  </main>
+  <footer data-animate>
+    © Bug Bash 2025 • SVYASA Deemed to be University, Bengaluru • <a href="mailto:contact@bugbash.me">contact@bugbash.me</a>
+  </footer>
+</div>
+<a class="floating-bug" href="/" title="Back to homepage">
+  <img src="/assets/bugbash_logo.png" alt="Bug Bash logo" onerror="this.src='/assets/bugbash_logo.png?bust=1'">
+</a>
+<script>
+/* bg */
+const canvas=document.getElementById('bg-canvas');
+const ctx=canvas.getContext('2d');
+let width=canvas.width=innerWidth;
+let height=canvas.height=innerHeight;
+const particles=[];
+const pulses=[];
+
+const random=(min,max)=>Math.random()*(max-min)+min;
+
+const rebuildParticles=()=>{
+  const count=Math.max(45,Math.floor((width*height)/60000));
+  particles.length=0;
+  for(let i=0;i<count;i++){
+    particles.push({
+      x:random(0,width),
+      y:random(0,height),
+      r:random(.6,2.8),
+      vx:random(-.45,.65),
+      vy:random(-.25,.45)
+    });
+  }
+
+  const pulseCount=Math.max(6,Math.floor(width/260));
+  pulses.length=0;
+  for(let i=0;i<pulseCount;i++){
+    pulses.push({
+      x:random(0,width),
+      y:random(0,height),
+      radius:random(20,80),
+      alpha:random(0.05,0.18),
+      speed:random(0.35,0.6)
+    });
+  }
+};
+
+const resetPulse=pulse=>{
+  pulse.x=random(0,width);
+  pulse.y=random(0,height);
+  pulse.radius=random(18,60);
+  pulse.alpha=random(0.05,0.16);
+  pulse.speed=random(0.32,0.55);
+};
+
+const resize=()=>{
+  width=canvas.width=innerWidth;
+  height=canvas.height=innerHeight;
+  rebuildParticles();
+};
+addEventListener('resize',resize);
+
+const draw=()=>{
+  ctx.clearRect(0,0,width,height);
+  const gradient=ctx.createLinearGradient(0,0,width,height);
+  gradient.addColorStop(0,'rgba(11,16,32,0.16)');
+  gradient.addColorStop(1,'rgba(2,4,10,0.22)');
+  ctx.fillStyle=gradient;
+  ctx.fillRect(0,0,width,height);
+
+  for(const pulse of pulses){
+    pulse.radius+=pulse.speed;
+    pulse.alpha-=0.0015;
+    if(pulse.alpha<=0){
+      resetPulse(pulse);
+    }
+    const grd=ctx.createRadialGradient(pulse.x,pulse.y,0,pulse.x,pulse.y,pulse.radius);
+    grd.addColorStop(0,`rgba(123,224,74,${pulse.alpha})`);
+    grd.addColorStop(1,'rgba(123,224,74,0)');
+    ctx.fillStyle=grd;
+    ctx.beginPath();
+    ctx.arc(pulse.x,pulse.y,pulse.radius,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  for(const p of particles){
+    p.x+=p.vx;
+    p.y+=p.vy;
+    if(p.x<-20)p.x=width+20;
+    if(p.x>width+20)p.x=-20;
+    if(p.y<-20)p.y=height+20;
+    if(p.y>height+20)p.y=-20;
+
+    ctx.beginPath();
+    ctx.fillStyle=`rgba(123,224,74,${0.07+p.r/6})`;
+    ctx.shadowColor='rgba(123,224,74,0.25)';
+    ctx.shadowBlur=6;
+    ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fill();
+  }
+  ctx.shadowBlur=0;
+
+  const limit=Math.min(particles.length,150);
+  for(let i=0;i<limit;i++){
+    const a=particles[i];
+    for(let j=i+1;j<limit;j++){
+      const b=particles[j];
+      const dx=a.x-b.x;
+      const dy=a.y-b.y;
+      const distSq=dx*dx+dy*dy;
+      if(distSq<9000){
+        ctx.beginPath();
+        ctx.strokeStyle=`rgba(123,224,74,${0.003+(9000-distSq)/11000})`;
+        ctx.lineWidth=0.8;
+        ctx.moveTo(a.x,a.y);
+        ctx.lineTo(b.x,b.y);
+        ctx.stroke();
+      }
+    }
+  }
+
+  requestAnimationFrame(draw);
+};
+
+rebuildParticles();
+draw();
+/* animations */
+const animated=document.querySelectorAll('[data-animate]');
+const prefersReduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+if(animated.length){
+  if(prefersReduced){animated.forEach(el=>el.classList.add('is-visible'));}
+  else{
+    const io=new IntersectionObserver((entries,observer)=>{
+      entries.forEach(entry=>{
+        if(entry.isIntersecting){
+          entry.target.classList.add('is-visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    },{threshold:.2,rootMargin:'0px 0px -40px'});
+    animated.forEach(el=>io.observe(el));
+  }
+}
+/* form */
+const form=document.getElementById('regForm');
+const msg=document.getElementById('formMsg');
+const submitBtn=form.querySelector('button[type="submit"]');
+const clearMsg=()=>{msg.hidden=true;msg.textContent='';msg.classList.remove('note--success','note--error')};
+const showMsg=(text,type)=>{
+  msg.hidden=false;msg.textContent=text;msg.classList.remove('note--success','note--error');
+  if(type==='success')msg.classList.add('note--success');
+  if(type==='error')msg.classList.add('note--error');
+};
+const errorMessages={
+  missing_fields:'Please fill in all required fields.',
+  invalid_email:'Please use a valid email address.',
+  email_exists:'This email is already registered.',
+  server_error:'Submission failed. Email contact@bugbash.me.'
+};
+form.addEventListener('input',()=>{if(!msg.hidden)clearMsg()});
+form.addEventListener('submit',async(e)=>{
+  e.preventDefault();
+  showMsg('Submitting...');
+  const entries=new FormData(form).entries();
+  const data={};
+  for(const [key,value] of entries){
+    data[key]=typeof value==='string'?value.trim():value;
+  }
+  submitBtn.disabled=true;
+  try{
+    const r=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(data)});
+    const ct=r.headers.get('content-type')||'';const expectJson=ct.includes('application/json');
+    let payload=null;
+    if(expectJson){try{payload=await r.json();}catch(parseErr){console.warn('Could not parse register response JSON',parseErr);}}
+    if(r.ok){
+      if(payload&&payload.ok===false){
+        const errKey=payload.error;
+        showMsg(errorMessages[errKey]||'Submission failed. Email contact@bugbash.me.','error');
+        console.error('Registration rejected',payload);
+      }else{
+        showMsg('Registered. Check your email for confirmation soon.','success');
+        form.reset();
+      }
+    }
+    else if(payload&&payload.error){
+      const errKey=payload.error;
+      showMsg(errorMessages[errKey]||'Submission failed. Email contact@bugbash.me.','error');
+      console.error('Registration error',payload);
+    }
+    else{showMsg('Submission failed. Email contact@bugbash.me.','error');if(!expectJson)console.error('Registration failed',r.status);}
+  }catch(err){showMsg('Network error. Try again.','error');console.error('Registration request error',err);}
+  finally{
+    submitBtn.disabled=false;
+  }
+});
+</script>
+</body>
+</html>
