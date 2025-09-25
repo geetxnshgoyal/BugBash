@@ -53,7 +53,13 @@
     border:1px solid rgba(255,255,255,0.12);border-radius:50%;box-shadow:var(--shadow);
     backdrop-filter:blur(6px);z-index:3;transition:transform .2s ease,box-shadow .2s ease;animation:bob 4.4s ease-in-out infinite .6s,ring 5.4s linear infinite}
   .floating-bug:hover{transform:translateY(-2px);box-shadow:0 14px 32px rgba(2,6,23,0.7)}
-  .floating-bug img{width:38px;height:38px;display:block}
+  .floating-bug img{width:38px;height:38px;display:block;border-radius:50%;object-fit:cover}
+  .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(3,10,18,0.72);backdrop-filter:blur(6px);z-index:30;padding:20px;transition:opacity .3s ease}
+  .modal[hidden]{display:none}
+  .modal__panel{background:linear-gradient(180deg,var(--glass),transparent);border-radius:18px;padding:28px;max-width:360px;width:100%;text-align:center;box-shadow:0 24px 46px rgba(2,6,23,0.66);border:1px solid rgba(255,255,255,0.12)}
+  .modal__panel h3{margin:0 0 12px;font-size:20px;letter-spacing:.04em}
+  .modal__panel p{margin:0 0 18px;color:var(--muted);font-size:14px}
+  .modal__actions{display:flex;justify-content:center}
   @keyframes panel-glow{0%,100%{opacity:0;transform:scale(0.7)}40%{opacity:.35;transform:scale(1)}}
   @keyframes glitch-top{0%{transform:translate(4px,-2px)}50%{transform:translate(2px,1px)}100%{transform:translate(4px,-2px)}}
   @keyframes glitch-bottom{0%{transform:translate(-5px,3px)}50%{transform:translate(-2px,6px)}100%{transform:translate(-5px,3px)}}
@@ -112,8 +118,8 @@
               <option value="XL">XL</option>
             </select>
           </label>
-          <label>Project or portfolio link <small class="note" style="margin:0">(optional)</small>
-            <input type="url" name="project_link" placeholder="https://">
+          <label>Profile link <small class="note" style="margin:0">(optional)</small>
+            <input type="url" name="profile_link" placeholder="https://linkedin.com/in/...">
           </label>
         </div>
         <label>How did you hear about us?
@@ -133,6 +139,15 @@
   <footer data-animate>
     © Bug Bash 2025 • SVYASA Deemed to be University, Bengaluru • <a href="mailto:contact@bugbash.me">contact@bugbash.me</a>
   </footer>
+</div>
+<div class="modal" id="successModal" hidden>
+  <div class="modal__panel">
+    <h3>Registration received!</h3>
+    <p id="successMessage">We'll send you a confirmation email shortly.</p>
+    <div class="modal__actions">
+      <button type="button" class="btn" id="successClose">Go to homepage</button>
+    </div>
+  </div>
 </div>
 <a class="floating-bug" href="/" title="Back to homepage">
   <img src="/assets/bugbash_logo.png" alt="Bug Bash logo" onerror="this.src='/assets/bugbash_logo.png?bust=1'">
@@ -275,6 +290,9 @@ const form=document.getElementById('regForm');
 const msg=document.getElementById('formMsg');
 const submitBtn=form.querySelector('button[type="submit"]');
 const dobInput=form.querySelector('input[name="dob"]');
+const successModal=document.getElementById('successModal');
+const successMessage=document.getElementById('successMessage');
+const successClose=document.getElementById('successClose');
 if(dobInput){
   const today=new Date();
   const y=today.getFullYear();
@@ -288,6 +306,23 @@ const showMsg=(text,type)=>{
   if(type==='success')msg.classList.add('note--success');
   if(type==='error')msg.classList.add('note--error');
 };
+const showSuccessModal=text=>{
+  successMessage.textContent=text;
+  successModal.hidden=false;
+};
+const hideSuccessModal=()=>{successModal.hidden=true;};
+if(successClose){
+  successClose.addEventListener('click',()=>{
+    hideSuccessModal();
+    window.location.href='/';
+  });
+  successModal.addEventListener('click',e=>{
+    if(e.target===successModal){
+      hideSuccessModal();
+      window.location.href='/';
+    }
+  });
+}
 const normalizePhone=input=>{
   const justDigits=input.replace(/[^\d+]/g,'');
   return justDigits.replace(/(?!^)[+]/g,'');
@@ -316,7 +351,6 @@ form.addEventListener('submit',async(e)=>{
     data[key]=typeof value==='string'?value.trim():value;
   }
   const phoneRaw=data.phone||'';
-  data.problem=data.problem||data.referral||'';
   const normalizedPhone=normalizePhone(phoneRaw);
   const dobValue=data.dob||'';
   const age=calcAgeYears(dobValue);
@@ -334,9 +368,6 @@ form.addEventListener('submit',async(e)=>{
   data.phone=normalizedPhone;
   data.size=sizeValue;
   data.heard_from=data.referral||'';
-  data.track=data.track||'General';
-  const fallbackTitle=data.problem?data.problem.slice(0,80):`${data.full_name||'Participant'} project`;
-  data.project_title=data.project_title||fallbackTitle;
   const originalNotes=data.notes||'';
   data.notes=originalNotes;
   showMsg('Submitting...');
@@ -352,8 +383,10 @@ form.addEventListener('submit',async(e)=>{
         showMsg(errorMessages[errKey]||'Submission failed. Email contact@bugbash.me.','error');
         console.error('Registration rejected',payload);
       }else{
-        showMsg('Registered. Check your email for confirmation soon.','success');
+        clearMsg();
         form.reset();
+        showSuccessModal('Check your email for confirmation soon. You will be redirected.');
+        setTimeout(()=>{window.location.href='/'},2800);
       }
     }
     else if(payload&&payload.error){

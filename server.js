@@ -111,15 +111,12 @@ const mapRegistration = (doc) => {
   return {
     id: doc.id,
     created_at: createdAt,
-    project_title: data.project_title || data.team_name || '',
-    team_name: data.team_name || '',
     leader_name: data.leader_name || '',
     leader_email: data.leader_email || '',
-    track: data.track || '',
     problem: data.problem || '',
     solution: data.solution || '',
     tech_stack: data.tech_stack || '',
-    project_link: data.project_link || '',
+    profile_link: data.profile_link || data.project_link || '',
     notes: data.notes || '',
     members_text: data.members_text || '',
     idea: data.idea || '',
@@ -127,7 +124,7 @@ const mapRegistration = (doc) => {
     phone: data.phone || '',
     dob: data.dob || '',
     tshirt_size: data.tshirt_size || data.size || '',
-    heard_from: data.heard_from || ''
+    heard_from: data.heard_from || data.problem || ''
   };
 };
 
@@ -165,13 +162,11 @@ app.post('/api/register', async (req, res) => {
     if (parts.length >= 2) leaderEmailRaw = parts[1].trim();
   }
 
-  const trackValue = String(payload.track ?? payload.preferred_track ?? '').trim();
-  const projectTitle = String(payload.project_title ?? payload.team_name ?? payload.project ?? '').trim();
   let problemStatement = String(payload.problem ?? payload.idea ?? '').trim();
   const solutionOverview = String(payload.solution ?? '').trim();
   const techStack = String(payload.tech_stack ?? payload.members ?? '').trim();
   const notesRaw = String(payload.notes ?? payload.additional_notes ?? '').trim();
-  const linkInput = String(payload.project_link ?? payload.link ?? '').trim();
+  const linkInput = String(payload.profile_link ?? payload.project_link ?? payload.link ?? '').trim();
   const link = linkInput && !/^https?:\/\//i.test(linkInput) ? `https://${linkInput}` : linkInput;
   const phoneRaw = String(payload.phone ?? '').trim();
   const normalizedPhone = phoneRaw.replace(/[^\d+]/g,'').replace(/(?!^)[+]/g,'');
@@ -180,8 +175,14 @@ app.post('/api/register', async (req, res) => {
   const allowedSizes = new Set(['XS','S','M','L','XL','XXL']);
   const tshirtSize = allowedSizes.has(tshirtRaw) ? tshirtRaw : '';
   const heardFrom = String(payload.heard_from ?? payload.referral ?? payload.problem ?? '').trim();
+  if (!problemStatement && heardFrom) {
+    problemStatement = heardFrom;
+  }
+  if (!problemStatement) {
+    problemStatement = 'Not specified yet';
+  }
 
-  if (!leader_name || !leaderEmailRaw || !trackValue || !projectTitle) {
+  if (!leader_name || !leaderEmailRaw) {
     return res.status(400).json({ ok: false, error: 'missing_fields' });
   }
 
@@ -199,32 +200,26 @@ app.post('/api/register', async (req, res) => {
       return res.status(409).json({ ok: false, error: 'email_exists' });
     }
 
-    if (!problemStatement) problemStatement = 'Not specified yet';
-
-    const ideaParts = [`Problem: ${problemStatement}`];
+    const ideaParts = [];
+    if (heardFrom) ideaParts.push(`Heard via: ${heardFrom}`);
     if (solutionOverview) ideaParts.push(`Solution: ${solutionOverview}`);
-    const ideaCombined = ideaParts.join('\n');
-    const membersText = [
-      techStack ? `Tech stack: ${techStack}` : '',
-      notesRaw ? `Notes: ${notesRaw}` : ''
-    ].filter(Boolean).join('\n') || 'Not provided';
+    if (techStack) ideaParts.push(`Tech stack: ${techStack}`);
+    const ideaCombined = ideaParts.join('\n') || problemStatement;
+    const membersText = techStack ? `Tech stack: ${techStack}` : 'Not provided';
 
     const docRef = registrationsCollection.doc();
     const createdAtIso = new Date().toISOString();
     await docRef.set({
-      team_name: projectTitle,
       leader_name,
       leader_email: leaderEmailRaw,
       leader_email_lower: leaderEmailNormalized,
       members_text: membersText,
-      track: trackValue,
       idea: ideaCombined,
       ip: req.headers['x-forwarded-for']?.toString() || req.socket.remoteAddress || '',
-      project_title: projectTitle,
       problem: problemStatement,
       solution: solutionOverview,
       tech_stack: techStack,
-      project_link: link,
+      profile_link: link,
       notes: notesRaw,
       phone: normalizedPhone,
       dob: dobRaw,
@@ -246,13 +241,22 @@ app.get('/api/registrations.csv', adminAuth, async (_req, res) => {
   try {
     const snapshot = await registrationsCollection.orderBy('created_at', 'desc').get();
     const rows = snapshot.docs.map(mapRegistration);
-    const headers = [
-      'id','created_at','project_title','team_name','leader_name','leader_email','phone','dob','tshirt_size','heard_from','track',
-      'problem','solution','tech_stack','project_link','notes','members_text','idea','ip'
+    const columns = [
+      { key: 'id', label: 'id' },
+      { key: 'created_at', label: 'created_at' },
+      { key: 'leader_name', label: 'name' },
+      { key: 'leader_email', label: 'email' },
+      { key: 'phone', label: 'phone' },
+      { key: 'dob', label: 'dob' },
+      { key: 'tshirt_size', label: 'tshirt_size' },
+      { key: 'heard_from', label: 'heard_from' },
+      { key: 'notes', label: 'notes' },
+      { key: 'profile_link', label: 'profile_link' },
+      { key: 'ip', label: 'ip' }
     ];
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const csv = [headers.join(',')]
-      .concat(rows.map((row) => headers.map((h) => esc(row[h])).join(',')))
+    const csv = [columns.map((c) => esc(c.label)).join(',')]
+      .concat(rows.map((row) => columns.map((c) => esc(row[c.key])).join(',')))
       .join('\n');
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="registrations.csv"');

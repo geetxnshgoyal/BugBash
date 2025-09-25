@@ -94,7 +94,7 @@
             <th>T-shirt size</th>
             <th>Heard via</th>
             <th>Notes</th>
-            <th>Project link</th>
+            <th>Profile link</th>
             <th>IP</th>
           </tr>
         </thead>
@@ -259,7 +259,7 @@ const renderRows=(rows=[])=>{
   }
   emptyState.hidden=true;
   tableBody.innerHTML=rows.map(row=>{
-    const linkCell=row.project_link?`<a href="${escapeHtml(row.project_link)}" target="_blank" rel="noopener">Open</a>`:'';
+    const linkCell=row.profile_link?`<a href="${escapeHtml(row.profile_link)}" target="_blank" rel="noopener">Open</a>`:'';
     const created=formatDate(row.created_at||'');
     const phone=row.phone||'';
     const dob=row.dob||'';
