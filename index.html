@@ -15,23 +15,19 @@
     linear-gradient(180deg,var(--bg1),var(--bg2));color:var(--white)}
   #bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.65}
   .wrap{position:relative;z-index:2;max-width:1200px;margin:32px auto;padding:28px}
-  /* Animated hero badge */
+  /* Hero identity */
   .hero-header{display:flex;align-items:center;gap:26px;padding:18px 0}
   .hero-header .brand-block{display:flex;flex-direction:column;gap:6px}
-  .logo-badge{position:relative;width:96px;height:96px;border-radius:28px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;overflow:hidden;box-shadow:0 20px 38px rgba(8,18,30,0.55);transform:translateZ(0)}
-  .logo-badge::before{content:"";position:absolute;inset:0;border-radius:inherit;background:conic-gradient(from 0deg,rgba(174,240,140,0.9),rgba(51,194,255,0.65),rgba(174,240,140,0.9));animation:logoRing 6.4s linear infinite;z-index:0;pointer-events:none}
-  .logo-badge::after{content:"";position:absolute;inset:12px;border-radius:inherit;background:rgba(4,12,18,0.92);box-shadow:inset 0 0 24px rgba(174,240,140,0.35),0 20px 36px rgba(1,9,14,0.5);z-index:1;pointer-events:none}
-  .logo-core{position:relative;z-index:3;width:62px;height:62px;border-radius:20px;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 30% 28%,rgba(174,240,140,0.45),rgba(5,18,22,0.88));box-shadow:0 12px 26px rgba(123,224,74,0.3);animation:logoFloat 4.4s ease-in-out infinite}
-  .logo-icon{width:44px;height:44px;color:#d9ffd3;filter:drop-shadow(0 0 16px rgba(174,240,140,0.42))}
-  .logo-orbit{position:absolute;inset:6px;border-radius:inherit;border:1px solid rgba(174,240,140,0.32);background:conic-gradient(from 0deg,rgba(174,240,140,0.7),rgba(51,194,255,0.18),rgba(174,240,140,0.7));mix-blend-mode:screen;z-index:2;animation:logoOrbit 7s linear infinite;pointer-events:none;-webkit-mask:radial-gradient(circle,transparent 63%,#000 66%);mask:radial-gradient(circle,transparent 63%,#000 66%)}
-  .logo-orbit--two{inset:10px;border-color:rgba(51,194,255,0.4);background:conic-gradient(from 90deg,rgba(51,194,255,0.65),rgba(174,240,140,0.1),rgba(51,194,255,0.65));animation-duration:5.6s;animation-direction:reverse;opacity:.72;-webkit-mask:radial-gradient(circle,transparent 58%,#000 62%);mask:radial-gradient(circle,transparent 58%,#000 62%)}
-  .logo-spark{position:absolute;border-radius:50%;background:rgba(174,240,140,0.85);box-shadow:0 0 10px rgba(174,240,140,0.7);width:8px;height:8px;animation:logoSpark 3s ease-in-out infinite;z-index:4}
-  .logo-spark--two{background:rgba(51,194,255,0.85);width:6px;height:6px;animation:logoSparkAlt 3.8s ease-in-out infinite}
-  .logo-spark--one{top:16px;left:16px}
-  .logo-spark--two{bottom:18px;right:18px}
-  @media(max-width:640px){.hero-header{flex-direction:column;align-items:flex-start;gap:18px}.logo-badge{width:88px;height:88px}.logo-badge::after{inset:10px}}
-  @media(max-width:480px){.logo-badge{width:80px;height:80px}.logo-badge::after{inset:8px}}
-  @media (prefers-reduced-motion: reduce){.logo-badge::before,.logo-core,.logo-orbit,.logo-spark{animation:none !important}}
+  .crest{position:relative;width:92px;height:92px;border-radius:26px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;overflow:hidden;box-shadow:0 18px 34px rgba(8,18,30,0.55);background:radial-gradient(circle at 30% 25%,rgba(126,255,192,0.28),rgba(9,20,28,0.92));transition:transform .28s ease,box-shadow .28s ease;isolation:isolate}
+  .crest::before{content:"";position:absolute;inset:12px;border-radius:22px;background:linear-gradient(145deg,rgba(6,22,28,0.95),rgba(10,30,40,0.78));box-shadow:inset 0 0 24px rgba(123,224,74,0.25);z-index:1}
+  .crest-ring{position:absolute;inset:-16px;border-radius:32px;background:conic-gradient(from 0deg,rgba(123,224,74,0.85),rgba(51,194,255,0.35),rgba(123,224,74,0.85));opacity:.45;animation:crest-spin 10s linear infinite;z-index:0}
+  .crest-glow{position:absolute;inset:0;border-radius:inherit;background:radial-gradient(circle at 50% 50%,rgba(123,224,74,0.32),transparent 70%);opacity:.6;animation:crest-glow 4.6s ease-in-out infinite;mix-blend-mode:screen;z-index:0}
+  .crest-core{position:relative;z-index:2;width:58px;height:58px;border-radius:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 12px 24px rgba(123,224,74,0.25);background:linear-gradient(160deg,rgba(11,40,48,0.95),rgba(4,18,28,0.8))}
+  .crest-icon{width:40px;height:40px;color:#c9ffe6;filter:drop-shadow(0 0 12px rgba(123,224,74,0.4))}
+  .crest:hover{transform:translateY(-2px);box-shadow:0 24px 42px rgba(6,18,28,0.65)}
+  @media(max-width:640px){.hero-header{flex-direction:column;align-items:flex-start;gap:18px}.crest{width:82px;height:82px}}
+  @media(max-width:480px){.crest{width:74px;height:74px}}
+  @media (prefers-reduced-motion: reduce){.crest,.crest-ring,.crest-glow{animation:none!important}}
   .brand{font-weight:800;font-size:20px;letter-spacing:.6px}
   .sub{color:var(--muted);font-size:13px;margin-top:0}
   .hero{display:grid;grid-template-columns:1fr 420px;gap:28px;margin-top:18px;align-items:center}
@@ -40,44 +36,7 @@
   [data-animate].is-visible{opacity:1;transform:translateY(0)}
   .panel{position:relative;background:linear-gradient(180deg,var(--glass),transparent);padding:28px;border-radius:14px;box-shadow:var(--shadow);backdrop-filter:blur(6px);overflow:hidden}
   .panel::after{content:'';position:absolute;inset:-30%;background:radial-gradient(circle at center,rgba(123,224,74,0.12) 0,rgba(123,224,74,0) 60%);opacity:0;animation:panel-glow 6s ease-in-out infinite;pointer-events:none}
-  .title{font-size:44px;line-height:1.05;margin:0 0 8px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-  .hero-word{position:relative;display:inline-flex;font-weight:800;letter-spacing:.02em}
-  .hero-word.hack{align-items:center;padding:0 10px;border-radius:10px;background:rgba(8,18,30,0.82);color:#aef08c;box-shadow:0 0 0 rgba(123,224,74,0);animation:hackGlow 3s ease-in-out infinite;text-transform:uppercase;font-family:"Source Code Pro",monospace;letter-spacing:.18em}
-  .hero-word.hack::before{content:"{";margin-right:6px;color:rgba(123,224,74,0.6)}
-  .hero-word.hack::after{content:"}";margin-left:6px;color:rgba(123,224,74,0.6);animation:hackCaret 1.2s steps(2) infinite}
-  .hero-word.break{display:inline-flex;gap:2px;padding:0 4px;animation:breakShift 4.4s ease-in-out infinite}
-  .hero-letter{position:relative;display:inline-block;padding:0 1px}
-  .hero-letter::before{content:attr(data-char);position:absolute;left:0;top:0;color:#ff6fb9;opacity:.4;animation:breakTop 1.6s ease-in-out infinite}
-  .hero-letter::after{content:attr(data-char);position:absolute;left:0;top:0;color:#33c2ff;opacity:.45;animation:breakBottom 1.9s ease-in-out infinite}
-  .hero-letter span{position:relative;display:inline-block;color:#f7f8fa}
-  .hero-letter:nth-child(odd) span{animation:breakCrack 2.6s ease-in-out infinite}
-  .hero-letter:nth-child(even) span{animation:breakCrackAlt 2.9s ease-in-out infinite}
-  .hero-word.build{position:relative;padding:0 10px 0 14px;animation:buildRise 3.4s ease-in-out infinite;color:#cffff0}
-  .hero-word.build::before,.hero-word.build::after{content:"";position:absolute;border-radius:50%;background:linear-gradient(135deg,rgba(123,224,74,0.8),rgba(83,255,198,0.4));opacity:.9}
-  .hero-word.build::before{width:12px;height:12px;left:-24px;top:4px;animation:buildNode 2.8s ease-in-out infinite}
-  .hero-word.build::after{width:12px;height:12px;right:-24px;bottom:0;animation:buildNode 3.1s ease-in-out infinite reverse}
-  .hero-word.build span{position:relative}
-  .hero-word.build span::before{content:"";position:absolute;left:-18px;right:-18px;bottom:-6px;height:3px;background:linear-gradient(90deg,rgba(123,224,74,0),rgba(123,224,74,0.65),rgba(123,224,74,0));transform-origin:left;animation:buildUnderline 3.4s ease-in-out infinite}
-  .hero-word.build span::after{content:"🤝";position:absolute;top:-22px;left:50%;transform:translateX(-50%);font-size:20px;animation:buildHandshake 2.8s ease-in-out infinite;opacity:.85}
-  .bug-highlight{position:relative;display:inline-flex;align-items:center;gap:8px;padding:6px 18px 6px 22px;border-radius:16px;background:rgba(10,20,30,0.78);box-shadow:0 14px 36px rgba(12,30,20,0.5);animation:bugHover 3.4s ease-in-out infinite,bugPulse 4.6s ease-in-out infinite;flex-basis:100%;justify-content:center;margin:12px auto 0}
-  .bug-highlight::before,.bug-highlight::after{content:'';position:absolute;inset:0;border-radius:inherit;mix-blend-mode:screen;pointer-events:none}
-  .bug-highlight::before{background:linear-gradient(125deg,rgba(174,240,140,0.18),rgba(51,194,255,0.06));opacity:.55;animation:bugSheen 4.2s ease-in-out infinite}
-  .bug-highlight::after{background:radial-gradient(circle at 20% 130%,rgba(123,224,74,0.4),transparent 65%);opacity:.45;animation:bugSheenAlt 5.4s ease-in-out infinite}
-  .bug-highlight > *{position:relative;z-index:1}
-
-  .bug-word{font-weight:800;color:#c8ffe0}
-  .bug-beetle{position:relative;width:40px;height:32px;display:inline-block}
-  .bug-body{position:absolute;left:8px;top:6px;width:24px;height:20px;background:radial-gradient(circle at 50% 30%,#b5ff86,#3ad467);border-radius:12px 12px 10px 10px;box-shadow:0 0 12px rgba(123,224,74,0.5);animation:bugSquash 3.2s ease-in-out infinite}
-  .bug-body::after{content:"";position:absolute;left:9px;top:-6px;width:6px;height:6px;background:#112018;border-radius:50%}
-  .bug-wing{position:absolute;width:18px;height:18px;background:linear-gradient(135deg,rgba(123,224,74,0.4),rgba(123,224,74,0));border-radius:18px;top:2px;mix-blend-mode:screen}
-  .bug-wing.left{left:-4px;transform-origin:100% 50%;animation:bugWingLeft 0.9s ease-in-out infinite}
-  .bug-wing.right{right:-4px;transform-origin:0 50%;animation:bugWingRight 0.9s ease-in-out infinite}
-  .bug-hammer{position:absolute;width:34px;height:34px;left:-18px;top:-24px;transform-origin:90% 90%;animation:bugHammer 3.2s ease-in-out infinite}
-  .bug-hammer::before{content:"";position:absolute;left:12px;top:-2px;width:18px;height:8px;border-radius:4px;background:linear-gradient(90deg,#f4d35e,#f08a5d)}
-  .bug-hammer::after{content:"";position:absolute;left:18px;top:6px;width:5px;height:22px;background:#f08a5d;border-radius:3px}
-  .bug-impact{position:absolute;width:40px;height:40px;left:0;top:0;border-radius:50%;border:2px solid rgba(255,255,255,0.4);opacity:0;animation:bugImpact 3.2s ease-in-out infinite}
-  .bug-spark{position:absolute;width:6px;height:6px;background:rgba(255,255,255,0.8);border-radius:50%;opacity:0;animation:bugSpark 3.2s ease-in-out infinite}
-  .bug-spark:nth-of-type(2){animation-delay:.25s}
+  .title{font-size:44px;line-height:1.05;margin:0 0 8px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
   .lead{color:var(--muted);font-size:16px;margin:0 0 18px}
   .cta-row{display:flex;gap:12px;flex-wrap:wrap}
   .btn{background:var(--accent);color:#061217;padding:12px 18px;border-radius:10px;font-weight:700;text-decoration:none;display:inline-block;box-shadow:0 8px 20px rgba(123,224,74,0.12);transition:transform .2s ease,box-shadow .2s ease}
@@ -106,40 +65,53 @@
   .floating-bug img{width:38px;height:38px;display:block}
   .register-list{list-style:disc;margin:12px 0 0 20px;padding:0;display:grid;gap:8px;font-size:14px}
   .note{font-size:13px;color:var(--muted);margin-top:8px}
-  .glitch{position:relative;display:inline-block;color:var(--white);font-weight:900;
-    filter:drop-shadow(0 8px 30px rgba(0,0,0,0.6))}
-  .glitch::before,.glitch::after{content:attr(data-text);position:absolute;left:0;top:0;opacity:.6;mix-blend-mode:screen}
-  .glitch::before{color:#ff3b81;transform:translate(4px,-2px);clip-path:polygon(0 0,100% 0,100% 45%,0 45%);animation:glitch-top .9s linear infinite}
-  .glitch::after{color:#33c2ff;transform:translate(-5px,3px);clip-path:polygon(0 55%,100% 55%,100% 100%,0 100%);animation:glitch-bottom 1.2s linear infinite}
+  .glitch{position:relative;display:inline-flex;align-items:center;color:var(--white);font-weight:900;
+    text-transform:uppercase;letter-spacing:.08em;padding:0 4px;
+    filter:drop-shadow(0 10px 32px rgba(0,0,0,0.55));text-shadow:0 0 18px rgba(123,224,74,0.2);
+    --glitch-color-1:#ff3b81;--glitch-color-2:#33c2ff;
+    --glitch-before-speed:.9s;--glitch-after-speed:1.2s;
+    --glitch-before-delay:0s;--glitch-after-delay:0s;
+    --glitch-buzz-speed:3s;
+    animation:glitch-buzz var(--glitch-buzz-speed) ease-in-out infinite}
+  .title .glitch{font-size:44px;line-height:1;white-space:nowrap}
+  .glitch::before,.glitch::after{content:attr(data-text);position:absolute;left:0;top:0;opacity:.65;mix-blend-mode:screen}
+  .glitch::before{color:var(--glitch-color-1);transform:translate(4px,-2px);
+    clip-path:polygon(0 0,100% 0,100% 45%,0 45%);
+    animation:glitch-top var(--glitch-before-speed) linear infinite;
+    animation-delay:var(--glitch-before-delay)}
+  .glitch::after{color:var(--glitch-color-2);transform:translate(-5px,3px);
+    clip-path:polygon(0 55%,100% 55%,100% 100%,0 100%);
+    animation:glitch-bottom var(--glitch-after-speed) linear infinite;
+    animation-delay:var(--glitch-after-delay)}
+  .glitch--hack{--glitch-color-1:#ff3b81;--glitch-color-2:#33c2ff;--glitch-buzz-speed:2.4s;
+    --glitch-before-delay:-0.08s;--glitch-after-delay:.12s}
+  .glitch--break{--glitch-color-1:#33c2ff;--glitch-color-2:#7be04a;--glitch-before-speed:1.1s;
+    --glitch-after-speed:1.45s;--glitch-buzz-speed:2.8s;
+    --glitch-before-delay:.14s;--glitch-after-delay:-0.06s}
+  .glitch--build{--glitch-color-1:#ff9b64;--glitch-color-2:#ff3b81;--glitch-before-speed:1.05s;
+    --glitch-after-speed:1.35s;--glitch-buzz-speed:3.1s;
+    --glitch-before-delay:-0.1s;--glitch-after-delay:.18s}
+  .glitch--bug{--glitch-color-1:#ff3b81;--glitch-color-2:#33c2ff;--glitch-buzz-speed:3.6s;
+    --glitch-before-speed:.85s;--glitch-after-speed:1.25s}
   footer{margin-top:38px;text-align:center;color:var(--muted);font-size:13px;padding:18px}
-  @keyframes hackGlow{0%,100%{box-shadow:0 0 0 rgba(123,224,74,0)}45%{box-shadow:0 0 22px rgba(123,224,74,0.4)}}
-  @keyframes hackCaret{0%,50%{opacity:1}51%,100%{opacity:0}}
-  @keyframes breakShift{0%,100%{transform:skewX(0)}40%{transform:skewX(-3deg)}70%{transform:skewX(3deg)}}
-  @keyframes breakTop{0%,100%{transform:translate(0,0)}50%{transform:translate(-4px,-5px)}}
-  @keyframes breakBottom{0%,100%{transform:translate(0,0)}50%{transform:translate(5px,4px)}}
-  @keyframes breakCrack{0%,100%{transform:rotate(0)}50%{transform:rotate(-6deg)}}
-  @keyframes breakCrackAlt{0%,100%{transform:rotate(0)}50%{transform:rotate(6deg)}}
-  @keyframes buildRise{0%,100%{transform:translateY(2px)}50%{transform:translateY(-6px)}}
-  @keyframes buildUnderline{0%{transform:scaleX(0);opacity:0}35%{transform:scaleX(1);opacity:.8}70%{transform:scaleX(1);opacity:.25}100%{transform:scaleX(0);opacity:0}}
-  @keyframes buildHandshake{0%,100%{transform:translateX(-50%) rotate(-5deg)}50%{transform:translateX(-50%) rotate(5deg)}}
-  @keyframes buildNode{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-  @keyframes bugHover{0%,100%{transform:translateY(0) scale(1);}50%{transform:translateY(-10px) scale(1.05);}}
-  @keyframes bugPulse{0%,100%{box-shadow:0 14px 36px rgba(12,30,20,0.45);}40%{box-shadow:0 20px 48px rgba(66,255,193,0.32);}60%{box-shadow:0 14px 36px rgba(12,30,20,0.55);}}
-  @keyframes bugSheen{0%,100%{opacity:.35;transform:translateX(-6%);}45%{opacity:.7;transform:translateX(6%);}55%{opacity:.2;transform:translateX(12%);}}
-  @keyframes bugSheenAlt{0%,100%{opacity:.2;transform:translate(-12px,4px) scale(0.95);}50%{opacity:.55;transform:translate(6px,-2px) scale(1.05);}}
-  @keyframes bugWingLeft{0%,100%{transform:rotate(10deg)}50%{transform:rotate(-12deg)}}
-  @keyframes bugWingRight{0%,100%{transform:rotate(-10deg)}50%{transform:rotate(12deg)}}
-  @keyframes bugHammer{0%,30%{transform:rotate(-10deg)}40%{transform:rotate(25deg)}55%{transform:rotate(-12deg)}100%{transform:rotate(-10deg)}}
-  @keyframes bugImpact{0%,35%{opacity:0;transform:scale(0.6)}40%{opacity:.35;transform:scale(1)}60%{opacity:0;transform:scale(0.9)}100%{opacity:0}}
-  @keyframes bugSpark{0%,50%{opacity:0;transform:translate(12px,-6px) scale(0)}55%{opacity:1;transform:translate(18px,-12px) scale(1)}80%{opacity:0;transform:translate(28px,-20px) scale(.2)}100%{opacity:0}}
+  @keyframes crest-spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+  @keyframes crest-glow{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:.7;transform:scale(1.05)}}
+  @keyframes glitch-buzz{
+    0%,100%{transform:translate3d(0,0,0) skewX(0deg)}
+    15%{transform:translate3d(-2px,0,0) skewX(-2deg)}
+    30%{transform:translate3d(2px,2px,0) skewX(2deg)}
+    45%{transform:translate3d(-1px,-1px,0) skewX(-1deg)}
+    60%{transform:translate3d(1px,-2px,0) skewX(3deg)}
+    75%{transform:translate3d(-1px,1px,0) skewX(-2deg)}
+  }
+  @keyframes glitch-top{0%{transform:translate(4px,-2px)}45%{transform:translate(1px,1px)}100%{transform:translate(4px,-2px)}}
+  @keyframes glitch-bottom{0%{transform:translate(-5px,3px)}40%{transform:translate(-1px,6px)}100%{transform:translate(-5px,3px)}}
   @keyframes logoRing{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
   @keyframes logoFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-4px);}}
   @keyframes logoOrbit{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
   @keyframes logoSpark{0%,100%{transform:translate(0,0) scale(1);opacity:.95;}50%{transform:translate(12px,-8px) scale(0.78);opacity:.45;}}
   @keyframes logoSparkAlt{0%,100%{transform:translate(0,0) scale(1);opacity:.9;}50%{transform:translate(-10px,8px) scale(1.25);opacity:.4;}}
   @keyframes panel-glow{0%,100%{opacity:0;transform:scale(0.7)}40%{opacity:.35;transform:scale(1)}}
-  @keyframes glitch-top{0%{transform:translate(4px,-2px)}50%{transform:translate(2px,1px)}100%{transform:translate(4px,-2px)}}
-  @keyframes glitch-bottom{0%{transform:translate(-5px,3px)}50%{transform:translate(-2px,6px)}100%{transform:translate(-5px,3px)}}
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
   @keyframes ring{0%{box-shadow:0 18px 34px rgba(123,224,74,0.08),0 0 0 0 rgba(123,224,74,0.15)}70%{box-shadow:0 18px 34px rgba(123,224,74,0.18),0 0 0 14px rgba(123,224,74,0)}100%{box-shadow:0 18px 34px rgba(123,224,74,0.08),0 0 0 0 rgba(123,224,74,0)}}
   @media(prefers-reduced-motion:reduce){
@@ -153,30 +125,26 @@
 
 <div class="wrap">
   <header data-animate class="hero-header">
-    <a class="logo-badge" href="/" aria-label="Bug Bash homepage">
-      <span class="logo-core" aria-hidden="true">
-        <svg class="logo-icon" viewBox="0 0 64 64" aria-hidden="true">
-          <ellipse cx="32" cy="36" rx="11" ry="15" fill="rgba(174,240,140,0.18)"></ellipse>
-          <circle cx="32" cy="22" r="6" fill="rgba(51,194,255,0.32)"></circle>
+    <a class="crest" href="/" aria-label="Bug Bash homepage">
+      <span class="crest-ring" aria-hidden="true"></span>
+      <span class="crest-glow" aria-hidden="true"></span>
+      <span class="crest-core" aria-hidden="true">
+        <svg class="crest-icon" viewBox="0 0 48 48" aria-hidden="true">
           <g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M32 10v9"></path>
-            <path d="M24 14l-7-7"></path>
-            <path d="M40 14l7-7"></path>
-            <path d="M18 28c4-8 14-12 14-12s10 4 14 12"></path>
-            <path d="M20 36h24"></path>
-            <path d="M20 40l-9 6"></path>
-            <path d="M44 40l9 6"></path>
-            <path d="M26 44l-5 11"></path>
-            <path d="M38 44l5 11"></path>
-            <path d="M32 24c-7 0-12 6-12 14s5 14 12 14 12-6 12-14-5-14-12-14z"></path>
+            <path d="M24 10v7"></path>
+            <path d="M18 13l-6-6"></path>
+            <path d="M30 13l6-6"></path>
+            <path d="M14 24c4-8 10-11 10-11s6 3 10 11"></path>
+            <path d="M16 29h16"></path>
+            <path d="M16 33l-7 5"></path>
+            <path d="M32 33l7 5"></path>
+            <path d="M20 36l-4 9"></path>
+            <path d="M28 36l4 9"></path>
+            <path d="M24 20c-6 0-10 5-10 12s4 12 10 12 10-5 10-12-4-12-10-12z"></path>
           </g>
-          <path d="M32 26v18" fill="none" stroke="rgba(102,255,204,0.75)" stroke-width="2.5" stroke-linecap="round"></path>
+          <path d="M24 22v16" stroke="rgba(122,224,116,0.75)" stroke-width="2.4" stroke-linecap="round"></path>
         </svg>
-        <span class="logo-spark logo-spark--one" aria-hidden="true"></span>
-        <span class="logo-spark logo-spark--two" aria-hidden="true"></span>
       </span>
-      <span class="logo-orbit" aria-hidden="true"></span>
-      <span class="logo-orbit logo-orbit--two" aria-hidden="true"></span>
     </a>
     <div class="brand-block">
       <div class="brand">BUG BASH <span style="color:var(--accent)">2025</span></div>
@@ -187,28 +155,9 @@
   <main class="hero">
     <section class="panel" data-animate aria-labelledby="hero-title">
       <h1 id="hero-title" class="title">
-        <span class="hero-word hack">Hack.</span>
-        <span class="hero-word break" data-text="Break.">
-          <span class="hero-letter" data-char="B"><span>B</span></span>
-          <span class="hero-letter" data-char="R"><span>R</span></span>
-          <span class="hero-letter" data-char="E"><span>E</span></span>
-          <span class="hero-letter" data-char="A"><span>A</span></span>
-          <span class="hero-letter" data-char="K"><span>K</span></span>
-        </span>
-        <span class="hero-word build"><span>Build.</span></span>
-        <span class="glitch bug-highlight" data-text="Bug Bash">
-          <span class="bug-word">Bug</span>
-          <span class="bug-beetle">
-            <span class="bug-wing left"></span>
-            <span class="bug-wing right"></span>
-            <span class="bug-body"></span>
-            <span class="bug-hammer"></span>
-            <span class="bug-impact"></span>
-            <span class="bug-spark"></span>
-            <span class="bug-spark"></span>
-          </span>
-          <span class="bug-word">Bash</span>
-        </span>
+        <span class="glitch glitch--hack" data-text="HACK">HACK</span>
+        <span class="glitch glitch--break" data-text="BREAK">BREAK</span>
+        <span class="glitch glitch--build" data-text="BUILD">BUILD</span>
       </h1>
       <p class="lead">Individual sign-up. Teams will be randomized 3–5 members each at kickoff.</p>
 
@@ -230,7 +179,7 @@
       <div class="cta-row" style="margin-top:18px">
         <a class="btn" href="/register">Go to registration page</a>
       </div>
-      <div class="note" style="margin-top:12px">Questions? <a href="mailto:contact@bugbash.me" style="color:var(--accent)">contact@bugbash.me</a> • +91&nbsp;96942&nbsp;41206</div>
+      <div class="note" style="margin-top:12px">Questions? <a href="mailto:contact@bugbash.me" style="color:var(--accent)">contact@bugbash.me</a> • +91&nbsp;96910&nbsp;49464</div>
     </aside>
   </main>
 

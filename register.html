@@ -81,7 +81,7 @@
         <li>List technologies, APIs, or datasets you expect to use.</li>
         <li>Drop any relevant GitHub/portfolio links so we know your style.</li>
       </ul>
-      <p class="note" style="margin-top:18px">Need help? Email <a href="mailto:contact@bugbash.me">contact@bugbash.me</a> or call +91&nbsp;96942&nbsp;41206.</p>
+      <p class="note" style="margin-top:18px">Need help? Email <a href="mailto:contact@bugbash.me">contact@bugbash.me</a> or call +91&nbsp;96910&nbsp;49464.</p>
     </section>
 
     <section class="panel" data-animate>
@@ -95,33 +95,30 @@
           </label>
         </div>
         <div class="field-row two">
-          <label>Preferred track
-            <select name="track" required>
-              <option value="">Select a track</option>
-              <option>AI for Good</option>
-              <option>Smart Campus</option>
-              <option>FinTech</option>
-              <option>Open Innovation</option>
-            </select>
+          <label>Phone number
+            <input type="tel" name="phone" placeholder="e.g. +91 98765 43210" autocomplete="tel" required>
           </label>
-          <label>Project title
-            <input name="project_title" placeholder="Working title" required>
+          <label>Date of birth
+            <input type="date" name="dob" autocomplete="bday" required>
           </label>
         </div>
-        <label>Problem you want to solve
-          <textarea name="problem" placeholder="What challenge are you tackling?" required></textarea>
-        </label>
-        <label>Proposed solution overview <small class="note" style="margin:0">(optional)</small>
-          <textarea name="solution" placeholder="How will you approach it?" rows="3"></textarea>
-        </label>
         <div class="field-row two">
-          <label>Tech stack <small class="note" style="margin:0">(optional)</small>
-            <input name="tech_stack" placeholder="Frameworks, tools, APIs">
+          <label>T-shirt size
+            <select name="size" required>
+              <option value="">Select a size</option>
+              <option value="S">S</option>
+              <option value="M">M</option>
+              <option value="L">L</option>
+              <option value="XL">XL</option>
+            </select>
           </label>
           <label>Project or portfolio link <small class="note" style="margin:0">(optional)</small>
             <input type="url" name="project_link" placeholder="https://">
           </label>
         </div>
+        <label>Problem you want to solve
+          <textarea name="problem" placeholder="What challenge are you tackling?" required></textarea>
+        </label>
         <label>Additional notes for organizers <small class="note" style="margin:0">(optional)</small>
           <textarea name="notes" placeholder="Dietary needs, travel info, accessibility, etc." rows="2"></textarea>
         </label>
@@ -277,11 +274,32 @@ if(animated.length){
 const form=document.getElementById('regForm');
 const msg=document.getElementById('formMsg');
 const submitBtn=form.querySelector('button[type="submit"]');
+const dobInput=form.querySelector('input[name="dob"]');
+if(dobInput){
+  const today=new Date();
+  const y=today.getFullYear();
+  const m=String(today.getMonth()+1).padStart(2,'0');
+  const d=String(today.getDate()).padStart(2,'0');
+  dobInput.max=`${y}-${m}-${d}`;
+}
 const clearMsg=()=>{msg.hidden=true;msg.textContent='';msg.classList.remove('note--success','note--error')};
 const showMsg=(text,type)=>{
   msg.hidden=false;msg.textContent=text;msg.classList.remove('note--success','note--error');
   if(type==='success')msg.classList.add('note--success');
   if(type==='error')msg.classList.add('note--error');
+};
+const normalizePhone=input=>{
+  const justDigits=input.replace(/[^\d+]/g,'');
+  return justDigits.replace(/(?!^)[+]/g,'');
+};
+const calcAgeYears=dobStr=>{
+  const date=new Date(dobStr);
+  if(Number.isNaN(date.getTime()))return NaN;
+  const today=new Date();
+  let age=today.getFullYear()-date.getFullYear();
+  const monthDiff=today.getMonth()-date.getMonth();
+  if(monthDiff<0||(monthDiff===0&&today.getDate()<date.getDate()))age--;
+  return age;
 };
 const errorMessages={
   missing_fields:'Please fill in all required fields.',
@@ -292,12 +310,35 @@ const errorMessages={
 form.addEventListener('input',()=>{if(!msg.hidden)clearMsg()});
 form.addEventListener('submit',async(e)=>{
   e.preventDefault();
-  showMsg('Submitting...');
   const entries=new FormData(form).entries();
   const data={};
   for(const [key,value] of entries){
     data[key]=typeof value==='string'?value.trim():value;
   }
+  const phoneRaw=data.phone||'';
+  const normalizedPhone=normalizePhone(phoneRaw);
+  const dobValue=data.dob||'';
+  const age=calcAgeYears(dobValue);
+  const birthDateValid=!Number.isNaN(new Date(dobValue).getTime());
+  const today=new Date();
+  const dobDate=birthDateValid?new Date(dobValue):null;
+  const sizeValue=data.size||'';
+  if(!phoneRaw){showMsg('Please add your phone number.','error');return;}
+  if(!/^\+?\d{7,15}$/.test(normalizedPhone)){showMsg('Phone number should have 7-15 digits and may start with +.','error');return;}
+  if(!dobValue||!birthDateValid){showMsg('Please provide a valid date of birth.','error');return;}
+  if(dobDate&&dobDate>today){showMsg('Date of birth cannot be in the future.','error');return;}
+  if(Number.isNaN(age)){showMsg('Please provide a valid date of birth.','error');return;}
+  if(age>21){showMsg('Only participants aged 21 or below can register.','error');return;}
+  if(!sizeValue){showMsg('Please choose a T-shirt size.','error');return;}
+  data.phone=normalizedPhone;
+  data.size=sizeValue;
+  data.track=data.track||'General';
+  const fallbackTitle=data.problem?data.problem.slice(0,80):`${data.full_name||'Participant'} project`;
+  data.project_title=data.project_title||fallbackTitle;
+  const originalNotes=data.notes||'';
+  const notesDetails=[originalNotes,`Phone: ${phoneRaw}`,`DOB: ${dobValue}`,`T-shirt size: ${sizeValue}`].filter(Boolean).join('\n');
+  data.notes=notesDetails;
+  showMsg('Submitting...');
   submitBtn.disabled=true;
   try{
     const r=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(data)});
