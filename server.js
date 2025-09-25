@@ -20,7 +20,7 @@ const REGISTRATION_OPEN = process.env.REGISTRATION_OPEN !== 'false';
 const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET?.trim() || '';
 const RECAPTCHA_MIN_SCORE = Number(process.env.RECAPTCHA_MIN_SCORE || '0.5');
 const adminSessions = new Map();
-const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}$/;
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[A-Za-z]{2,}$/;
 const INDIAN_MOBILE_REGEX = /^[6-9][0-9]{9}$/;
 
 const createSession = (username) => {
