@@ -16,6 +16,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || process.env.ADMIN_KEY || '';
 const SESSION_TTL_MS = Number(process.env.ADMIN_SESSION_TTL_MS || 1000 * 60 * 60 * 6);
+const REGISTRATION_OPEN = process.env.REGISTRATION_OPEN !== 'false';
+const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET?.trim() || '';
+const RECAPTCHA_MIN_SCORE = Number(process.env.RECAPTCHA_MIN_SCORE || '0.5');
 const adminSessions = new Map();
 
 const createSession = (username) => {
@@ -134,6 +137,14 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // static
+app.get('/env.js', (_req, res) => {
+  const payload = {
+    recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY || '',
+    registrationsOpen: REGISTRATION_OPEN
+  };
+  res.type('application/javascript').send(`window.__APP_CONFIG__=${JSON.stringify(payload)};`);
+});
+
 app.use('/assets', express.static(path.join(__dirname, 'assets'), { extensions: ['png','jpg','jpeg','gif'] }));
 app.use(express.static(__dirname, { extensions: ['html'] }));
 
@@ -143,6 +154,10 @@ app.get('/api/health', (_req, res) => res.json({ ok: true }));
 // register
 app.post('/api/register', async (req, res) => {
   const payload = req.body || {};
+
+  if (!REGISTRATION_OPEN) {
+    return res.status(503).json({ ok: false, error: 'registrations_closed' });
+  }
 
   const leader_name = String(
     payload.full_name ??
@@ -175,6 +190,9 @@ app.post('/api/register', async (req, res) => {
   const allowedSizes = new Set(['XS','S','M','L','XL','XXL']);
   const tshirtSize = allowedSizes.has(tshirtRaw) ? tshirtRaw : '';
   const heardFrom = String(payload.heard_from ?? payload.referral ?? payload.problem ?? '').trim();
+  const captchaToken = String(payload.captchaToken ?? payload['g-recaptcha-response'] ?? '').trim();
+  delete payload.captchaToken;
+  delete payload['g-recaptcha-response'];
   if (!problemStatement && heardFrom) {
     problemStatement = heardFrom;
   }
@@ -188,6 +206,30 @@ app.post('/api/register', async (req, res) => {
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(leaderEmailRaw)) {
     return res.status(400).json({ ok: false, error: 'invalid_email' });
+  }
+
+  if (RECAPTCHA_SECRET) {
+    if (!captchaToken) {
+      return res.status(400).json({ ok: false, error: 'invalid_captcha' });
+    }
+    try {
+      const verifyResponse = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          secret: RECAPTCHA_SECRET,
+          response: captchaToken
+        }).toString()
+      });
+      const verifyPayload = await verifyResponse.json();
+      const scoreOk = typeof verifyPayload.score !== 'number' || verifyPayload.score >= RECAPTCHA_MIN_SCORE;
+      if (!verifyPayload.success || !scoreOk) {
+        return res.status(400).json({ ok: false, error: 'captcha_failed' });
+      }
+    } catch (captchaErr) {
+      console.error('reCAPTCHA verification failed', captchaErr);
+      return res.status(400).json({ ok: false, error: 'captcha_failed' });
+    }
   }
 
   const leaderEmailNormalized = leaderEmailRaw.toLowerCase();
