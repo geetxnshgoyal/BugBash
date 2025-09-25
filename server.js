@@ -20,6 +20,8 @@ const REGISTRATION_OPEN = process.env.REGISTRATION_OPEN !== 'false';
 const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET?.trim() || '';
 const RECAPTCHA_MIN_SCORE = Number(process.env.RECAPTCHA_MIN_SCORE || '0.5');
 const adminSessions = new Map();
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}$/;
+const INDIAN_MOBILE_REGEX = /^[6-9][0-9]{9}$/;
 
 const createSession = (username) => {
   const token = crypto.randomBytes(32).toString('hex');
@@ -187,10 +189,24 @@ app.post('/api/register', async (req, res) => {
   const normalizeIndianPhone = (input) => {
     if (!input) return null;
     const digits = input.replace(/\D/g, '');
-    if (digits.length === 10) return `+91${digits}`;
-    if (digits.length === 11 && digits.startsWith('0')) return `+91${digits.slice(1)}`;
-    if (digits.length === 12 && digits.startsWith('91')) return `+${digits}`;
-    if (digits.length === 13 && digits.startsWith('091')) return `+${digits.slice(1)}`;
+    const ensureValidTen = (ten) => (INDIAN_MOBILE_REGEX.test(ten) ? ten : null);
+    if (digits.length === 10) {
+      const ten = ensureValidTen(digits);
+      return ten ? `+91${ten}` : null;
+    }
+    if (digits.length === 11 && digits.startsWith('0')) {
+      const ten = ensureValidTen(digits.slice(1));
+      return ten ? `+91${ten}` : null;
+    }
+    if (digits.length === 12 && digits.startsWith('91')) {
+      const ten = ensureValidTen(digits.slice(2));
+      return ten ? `+${digits}` : null;
+    }
+    if (digits.length === 13 && digits.startsWith('091')) {
+      const candidate = digits.slice(1);
+      const ten = ensureValidTen(candidate.slice(2));
+      return ten ? `+${candidate}` : null;
+    }
     return null;
   };
   const normalizedPhone = normalizeIndianPhone(phoneRaw);
@@ -213,7 +229,7 @@ app.post('/api/register', async (req, res) => {
     return res.status(400).json({ ok: false, error: 'missing_fields' });
   }
 
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(leaderEmailRaw)) {
+  if (!EMAIL_REGEX.test(leaderEmailRaw)) {
     return res.status(400).json({ ok: false, error: 'invalid_email' });
   }
 
