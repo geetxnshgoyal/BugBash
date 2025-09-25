@@ -184,7 +184,16 @@ app.post('/api/register', async (req, res) => {
   const linkInput = String(payload.profile_link ?? payload.project_link ?? payload.link ?? '').trim();
   const link = linkInput && !/^https?:\/\//i.test(linkInput) ? `https://${linkInput}` : linkInput;
   const phoneRaw = String(payload.phone ?? '').trim();
-  const normalizedPhone = phoneRaw.replace(/[^\d+]/g,'').replace(/(?!^)[+]/g,'');
+  const normalizeIndianPhone = (input) => {
+    if (!input) return null;
+    const digits = input.replace(/\D/g, '');
+    if (digits.length === 10) return `+91${digits}`;
+    if (digits.length === 11 && digits.startsWith('0')) return `+91${digits.slice(1)}`;
+    if (digits.length === 12 && digits.startsWith('91')) return `+${digits}`;
+    if (digits.length === 13 && digits.startsWith('091')) return `+${digits.slice(1)}`;
+    return null;
+  };
+  const normalizedPhone = normalizeIndianPhone(phoneRaw);
   const dobRaw = String(payload.dob ?? '').trim();
   const tshirtRaw = String(payload.size ?? payload.tshirt_size ?? '').trim().toUpperCase().replace(/\s+/g,'');
   const allowedSizes = new Set(['XS','S','M','L','XL','XXL']);
@@ -206,6 +215,10 @@ app.post('/api/register', async (req, res) => {
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(leaderEmailRaw)) {
     return res.status(400).json({ ok: false, error: 'invalid_email' });
+  }
+
+  if (!normalizedPhone) {
+    return res.status(400).json({ ok: false, error: 'invalid_phone' });
   }
 
   if (RECAPTCHA_SECRET) {

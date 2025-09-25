@@ -291,6 +291,7 @@ const form=document.getElementById('regForm');
 const msg=document.getElementById('formMsg');
 const submitBtn=form.querySelector('button[type="submit"]');
 const dobInput=form.querySelector('input[name="dob"]');
+const phoneInput=form.querySelector('input[name="phone"]');
 const successModal=document.getElementById('successModal');
 const successMessage=document.getElementById('successMessage');
 const successClose=document.getElementById('successClose');
@@ -339,6 +340,20 @@ if(dobInput){
   const d=String(today.getDate()).padStart(2,'0');
   dobInput.max=`${y}-${m}-${d}`;
 }
+if(phoneInput){
+  phoneInput.setAttribute('pattern','^\\+?[0-9 ]*$');
+  phoneInput.addEventListener('input',()=>{
+    const raw=phoneInput.value;
+    if(!raw)return;
+    const trimmed=raw.trim();
+    const hasPlus=trimmed.startsWith('+');
+    const digits=trimmed.replace(/\D/g,'');
+    const sanitized=hasPlus?`+${digits}`:digits;
+    if(sanitized!==raw){
+      phoneInput.value=sanitized;
+    }
+  });
+}
 const clearMsg=()=>{msg.hidden=true;msg.textContent='';msg.classList.remove('note--success','note--error')};
 const showMsg=(text,type)=>{
   msg.hidden=false;msg.textContent=text;msg.classList.remove('note--success','note--error');
@@ -363,8 +378,21 @@ if(successClose){
   });
 }
 const normalizePhone=input=>{
-  const justDigits=input.replace(/[^\d+]/g,'');
-  return justDigits.replace(/(?!^)[+]/g,'');
+  if(!input)return null;
+  const digits=input.replace(/\D/g,'');
+  if(digits.length===10){
+    return `+91${digits}`;
+  }
+  if(digits.length===11&&digits.startsWith('0')){
+    return `+91${digits.slice(1)}`;
+  }
+  if(digits.length===12&&digits.startsWith('91')){
+    return `+${digits}`;
+  }
+  if(digits.length===13&&digits.startsWith('091')){
+    return `+${digits.slice(1)}`;
+  }
+  return null;
 };
 const calcAgeYears=dobStr=>{
   const date=new Date(dobStr);
@@ -382,7 +410,8 @@ const errorMessages={
   server_error:'Submission failed. Email contact@bugbash.me.',
   registrations_closed:'Registrations are currently paused. Check back soon.',
   invalid_captcha:'Please complete the CAPTCHA challenge.',
-  captcha_failed:'We could not verify you are human. Reload and try again.'
+  captcha_failed:'We could not verify you are human. Reload and try again.',
+  invalid_phone:'Phone number must be an Indian mobile (10 digits, +91).'
 };
 if(!REGISTRATIONS_OPEN){
   setFormEnabled(false);
@@ -409,7 +438,7 @@ form.addEventListener('submit',async(e)=>{
   const dobDate=birthDateValid?new Date(dobValue):null;
   const sizeValue=data.size||'';
   if(!phoneRaw){showMsg('Please add your phone number.','error');return;}
-  if(!/^\+?\d{7,15}$/.test(normalizedPhone)){showMsg('Phone number should have 7-15 digits and may start with +.','error');return;}
+  if(!normalizedPhone){showMsg(errorMessages.invalid_phone,'error');return;}
   if(!dobValue||!birthDateValid){showMsg('Please provide a valid date of birth.','error');return;}
   if(dobDate&&dobDate>today){showMsg('Date of birth cannot be in the future.','error');return;}
   if(Number.isNaN(age)){showMsg('Please provide a valid date of birth.','error');return;}
