@@ -333,18 +333,12 @@ form.addEventListener('submit',async(e)=>{
   if(!sizeValue){showMsg('Please choose a T-shirt size.','error');return;}
   data.phone=normalizedPhone;
   data.size=sizeValue;
+  data.heard_from=data.referral||'';
   data.track=data.track||'General';
   const fallbackTitle=data.problem?data.problem.slice(0,80):`${data.full_name||'Participant'} project`;
   data.project_title=data.project_title||fallbackTitle;
   const originalNotes=data.notes||'';
-  const notesDetails=[
-    originalNotes,
-    data.referral?`Heard via: ${data.referral}`:'',
-    `Phone: ${phoneRaw}`,
-    `DOB: ${dobValue}`,
-    `T-shirt size: ${sizeValue}`
-  ].filter(Boolean).join('\n');
-  data.notes=notesDetails;
+  data.notes=originalNotes;
   showMsg('Submitting...');
   submitBtn.disabled=true;
   try{

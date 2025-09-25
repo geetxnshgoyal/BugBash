@@ -123,7 +123,11 @@ const mapRegistration = (doc) => {
     notes: data.notes || '',
     members_text: data.members_text || '',
     idea: data.idea || '',
-    ip: data.ip || ''
+    ip: data.ip || '',
+    phone: data.phone || '',
+    dob: data.dob || '',
+    tshirt_size: data.tshirt_size || data.size || '',
+    heard_from: data.heard_from || ''
   };
 };
 
@@ -169,6 +173,13 @@ app.post('/api/register', async (req, res) => {
   const notesRaw = String(payload.notes ?? payload.additional_notes ?? '').trim();
   const linkInput = String(payload.project_link ?? payload.link ?? '').trim();
   const link = linkInput && !/^https?:\/\//i.test(linkInput) ? `https://${linkInput}` : linkInput;
+  const phoneRaw = String(payload.phone ?? '').trim();
+  const normalizedPhone = phoneRaw.replace(/[^\d+]/g,'').replace(/(?!^)[+]/g,'');
+  const dobRaw = String(payload.dob ?? '').trim();
+  const tshirtRaw = String(payload.size ?? payload.tshirt_size ?? '').trim().toUpperCase().replace(/\s+/g,'');
+  const allowedSizes = new Set(['XS','S','M','L','XL','XXL']);
+  const tshirtSize = allowedSizes.has(tshirtRaw) ? tshirtRaw : '';
+  const heardFrom = String(payload.heard_from ?? payload.referral ?? payload.problem ?? '').trim();
 
   if (!leader_name || !leaderEmailRaw || !trackValue || !projectTitle) {
     return res.status(400).json({ ok: false, error: 'missing_fields' });
@@ -215,6 +226,10 @@ app.post('/api/register', async (req, res) => {
       tech_stack: techStack,
       project_link: link,
       notes: notesRaw,
+      phone: normalizedPhone,
+      dob: dobRaw,
+      tshirt_size: tshirtSize,
+      heard_from: heardFrom,
       created_at: createdAtIso,
       created_at_ts: FieldValue.serverTimestamp()
     });
@@ -232,7 +247,7 @@ app.get('/api/registrations.csv', adminAuth, async (_req, res) => {
     const snapshot = await registrationsCollection.orderBy('created_at', 'desc').get();
     const rows = snapshot.docs.map(mapRegistration);
     const headers = [
-      'id','created_at','project_title','team_name','leader_name','leader_email','track',
+      'id','created_at','project_title','team_name','leader_name','leader_email','phone','dob','tshirt_size','heard_from','track',
       'problem','solution','tech_stack','project_link','notes','members_text','idea','ip'
     ];
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;

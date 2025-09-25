@@ -36,7 +36,7 @@
   .toolbar-actions a:hover{transform:translateY(-1px);box-shadow:0 12px 26px rgba(123,224,74,0.22)}
   .toolbar-actions a.ghost{background:transparent;color:var(--white);border:1px solid rgba(255,255,255,0.18)}
   .table-wrap{overflow-x:auto;border-radius:14px;border:1px solid rgba(255,255,255,0.08)}
-  table{width:100%;border-collapse:collapse;min-width:920px;background:rgba(9,14,25,0.55);backdrop-filter:blur(4px)}
+  table{width:100%;border-collapse:collapse;min-width:780px;background:rgba(9,14,25,0.55);backdrop-filter:blur(4px)}
   th,td{border-bottom:1px solid rgba(255,255,255,0.06);padding:12px 14px;text-align:left;font-size:14px;vertical-align:top}
   th{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:600}
   tbody tr:hover{background:rgba(123,224,74,0.06)}
@@ -89,13 +89,12 @@
             <th>Submitted</th>
             <th>Participant</th>
             <th>Email</th>
-            <th>Track</th>
-            <th>Project title</th>
-            <th>Problem</th>
-            <th>Solution</th>
-            <th>Tech stack</th>
+            <th>Phone</th>
+            <th>DOB</th>
+            <th>T-shirt size</th>
+            <th>Heard via</th>
             <th>Notes</th>
-            <th>Link</th>
+            <th>Project link</th>
             <th>IP</th>
           </tr>
         </thead>
@@ -262,16 +261,19 @@ const renderRows=(rows=[])=>{
   tableBody.innerHTML=rows.map(row=>{
     const linkCell=row.project_link?`<a href="${escapeHtml(row.project_link)}" target="_blank" rel="noopener">Open</a>`:'';
     const created=formatDate(row.created_at||'');
+    const phone=row.phone||'';
+    const dob=row.dob||'';
+    const size=row.tshirt_size||'';
+    const heard=row.heard_from||row.problem||'';
     return `<tr>
       <td>${row.id}</td>
       <td>${escapeHtml(created)}</td>
       <td>${escapeHtml(row.leader_name||'')}</td>
       <td>${escapeHtml(row.leader_email||'')}</td>
-      <td>${escapeHtml(row.track||'')}</td>
-      <td>${escapeHtml(row.project_title||row.team_name||'')}</td>
-      <td>${formatMultiLine(row.problem||'')}</td>
-      <td>${formatMultiLine(row.solution||'')}</td>
-      <td>${formatMultiLine(row.tech_stack||row.members_text||'')}</td>
+      <td>${escapeHtml(phone)}</td>
+      <td>${escapeHtml(dob)}</td>
+      <td>${escapeHtml(size)}</td>
+      <td>${formatMultiLine(heard)}</td>
       <td>${formatMultiLine(row.notes||'')}</td>
       <td>${linkCell}</td>
       <td>${escapeHtml(row.ip||'')}</td>
