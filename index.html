@@ -16,8 +16,6 @@
   #bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.65}
   .wrap{position:relative;z-index:2;max-width:1200px;margin:32px auto;padding:28px}
   /* Hero identity */
-  .hero-header{display:flex;align-items:center;gap:26px;padding:18px 0}
-  .hero-header .brand-block{display:flex;flex-direction:column;gap:6px}
   .crest{position:relative;width:92px;height:92px;border-radius:26px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;overflow:hidden;box-shadow:0 18px 34px rgba(8,18,30,0.55);background:radial-gradient(circle at 30% 25%,rgba(126,255,192,0.28),rgba(9,20,28,0.92));transition:transform .28s ease,box-shadow .28s ease;isolation:isolate}
   .crest::before{content:"";position:absolute;inset:12px;border-radius:22px;background:linear-gradient(145deg,rgba(6,22,28,0.95),rgba(10,30,40,0.78));box-shadow:inset 0 0 24px rgba(123,224,74,0.25);z-index:1}
   .crest-ring{position:absolute;inset:-16px;border-radius:32px;background:conic-gradient(from 0deg,rgba(123,224,74,0.85),rgba(51,194,255,0.35),rgba(123,224,74,0.85));opacity:.45;animation:crest-spin 10s linear infinite;z-index:0}
@@ -25,12 +23,25 @@
   .crest-core{position:relative;z-index:2;width:58px;height:58px;border-radius:20px;display:flex;align-items:center;justify-content:center;box-shadow:0 12px 24px rgba(123,224,74,0.25);background:linear-gradient(160deg,rgba(11,40,48,0.95),rgba(4,18,28,0.8))}
   .crest-icon{width:40px;height:40px;color:#c9ffe6;filter:drop-shadow(0 0 12px rgba(123,224,74,0.4))}
   .crest:hover{transform:translateY(-2px);box-shadow:0 24px 42px rgba(6,18,28,0.65)}
-  @media(max-width:640px){.hero-header{flex-direction:column;align-items:flex-start;gap:18px}.crest{width:82px;height:82px}}
-  @media(max-width:480px){.crest{width:74px;height:74px}}
+  .crest--xl{width:128px;height:128px}
+  .crest--xl::before{inset:18px}
+  .crest--xl .crest-core{width:78px;height:78px;border-radius:26px}
+  .crest--xl .crest-icon{width:56px;height:56px}
+  @media(max-width:640px){.crest{width:82px;height:82px}.crest--xl{width:110px;height:110px}}
+  @media(max-width:480px){.crest{width:74px;height:74px}.crest--xl{width:96px;height:96px}.crest--xl::before{inset:14px}}
   @media (prefers-reduced-motion: reduce){.crest,.crest-ring,.crest-glow{animation:none!important}}
-  .brand{font-weight:800;font-size:20px;letter-spacing:.6px}
-  .sub{color:var(--muted);font-size:13px;margin-top:0}
-  .hero{display:grid;grid-template-columns:1fr 420px;gap:28px;margin-top:18px;align-items:center}
+  .logo-stage{min-height:50vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:32px 0 12px;position:relative}
+  .logo-stage__inner{display:flex;flex-direction:column;align-items:center;gap:22px;max-width:520px}
+  .logo-word{display:inline-flex;gap:12px;font-size:52px;font-weight:900;text-transform:uppercase;letter-spacing:.16em;color:var(--white)}
+  .logo-letter{position:relative;display:inline-block;opacity:0;transform:translateY(18px) scale(.9);animation:letter-pop 3.6s ease-in-out infinite;animation-delay:calc(var(--index)*0.18s);padding:0 1px}
+  .logo-letter::before{content:attr(data-char);position:absolute;left:0;top:0;color:rgba(255,59,129,0.55);opacity:.45;transform:translate(-4px,4px);animation:letter-glow 3.6s ease-in-out infinite reverse;animation-delay:calc(var(--index)*0.18s)}
+  .logo-letter::after{content:attr(data-char);position:absolute;left:0;top:0;color:rgba(51,194,255,0.65);opacity:.45;transform:translate(4px,-4px);animation:letter-glow 3.6s ease-in-out infinite;animation-delay:calc(var(--index)*0.18s)}
+  .logo-letter[data-char=""]{width:18px;animation:none;opacity:1}
+  .logo-letter[data-char=""]::before,.logo-letter[data-char=""]::after{content:""}
+  .logo-tagline{color:var(--muted);font-size:15px;margin:0;letter-spacing:.12em;text-transform:uppercase}
+  @media(max-width:720px){.logo-stage{padding:28px 0 10px}.logo-word{font-size:40px;letter-spacing:.12em;gap:10px}.logo-tagline{font-size:13px;letter-spacing:.1em}}
+  @media(max-width:480px){.logo-word{font-size:32px;letter-spacing:.09em;gap:6px}.logo-tagline{font-size:12px;letter-spacing:.08em}}
+  .hero{display:grid;grid-template-columns:1fr 420px;gap:28px;margin-top:0;align-items:center;justify-content:center;min-height:50vh}
   @media(max-width:920px){.hero{grid-template-columns:1fr}}
   [data-animate]{opacity:0;transform:translateY(28px);transition:opacity .7s ease,transform .7s ease;will-change:opacity,transform}
   [data-animate].is-visible{opacity:1;transform:translateY(0)}
@@ -106,11 +117,8 @@
   }
   @keyframes glitch-top{0%{transform:translate(4px,-2px)}45%{transform:translate(1px,1px)}100%{transform:translate(4px,-2px)}}
   @keyframes glitch-bottom{0%{transform:translate(-5px,3px)}40%{transform:translate(-1px,6px)}100%{transform:translate(-5px,3px)}}
-  @keyframes logoRing{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
-  @keyframes logoFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-4px);}}
-  @keyframes logoOrbit{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
-  @keyframes logoSpark{0%,100%{transform:translate(0,0) scale(1);opacity:.95;}50%{transform:translate(12px,-8px) scale(0.78);opacity:.45;}}
-  @keyframes logoSparkAlt{0%,100%{transform:translate(0,0) scale(1);opacity:.9;}50%{transform:translate(-10px,8px) scale(1.25);opacity:.4;}}
+  @keyframes letter-pop{0%{opacity:0;transform:translateY(18px) scale(.85)}40%{opacity:1;transform:translateY(-4px) scale(1.05)}65%{transform:translateY(0) scale(1)}80%{opacity:1;transform:translateY(2px) scale(.98)}100%{opacity:0;transform:translateY(18px) scale(.9)}}
+  @keyframes letter-glow{0%,100%{opacity:.25}45%{opacity:.85}}
   @keyframes panel-glow{0%,100%{opacity:0;transform:scale(0.7)}40%{opacity:.35;transform:scale(1)}}
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
   @keyframes ring{0%{box-shadow:0 18px 34px rgba(123,224,74,0.08),0 0 0 0 rgba(123,224,74,0.15)}70%{box-shadow:0 18px 34px rgba(123,224,74,0.18),0 0 0 14px rgba(123,224,74,0)}100%{box-shadow:0 18px 34px rgba(123,224,74,0.08),0 0 0 0 rgba(123,224,74,0)}}
@@ -124,33 +132,42 @@
 <canvas id="bg-canvas"></canvas>
 
 <div class="wrap">
-  <header data-animate class="hero-header">
-    <a class="crest" href="/" aria-label="Bug Bash homepage">
-      <span class="crest-ring" aria-hidden="true"></span>
-      <span class="crest-glow" aria-hidden="true"></span>
-      <span class="crest-core" aria-hidden="true">
-        <svg class="crest-icon" viewBox="0 0 48 48" aria-hidden="true">
-          <g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M24 10v7"></path>
-            <path d="M18 13l-6-6"></path>
-            <path d="M30 13l6-6"></path>
-            <path d="M14 24c4-8 10-11 10-11s6 3 10 11"></path>
-            <path d="M16 29h16"></path>
-            <path d="M16 33l-7 5"></path>
-            <path d="M32 33l7 5"></path>
-            <path d="M20 36l-4 9"></path>
-            <path d="M28 36l4 9"></path>
-            <path d="M24 20c-6 0-10 5-10 12s4 12 10 12 10-5 10-12-4-12-10-12z"></path>
-          </g>
-          <path d="M24 22v16" stroke="rgba(122,224,116,0.75)" stroke-width="2.4" stroke-linecap="round"></path>
-        </svg>
-      </span>
-    </a>
-    <div class="brand-block">
-      <div class="brand">BUG BASH <span style="color:var(--accent)">2025</span></div>
-      <div class="sub">NST×SVYASA • First week of November • 24-hour student hackathon</div>
+  <section class="logo-stage" aria-labelledby="logo-heading" data-animate>
+    <div class="logo-stage__inner">
+      <a class="crest crest--xl" href="/register" aria-label="Go to Bug Bash registration">
+        <span class="crest-ring" aria-hidden="true"></span>
+        <span class="crest-glow" aria-hidden="true"></span>
+        <span class="crest-core" aria-hidden="true">
+          <svg class="crest-icon" viewBox="0 0 48 48" aria-hidden="true">
+            <g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M24 10v7"></path>
+              <path d="M18 13l-6-6"></path>
+              <path d="M30 13l6-6"></path>
+              <path d="M14 24c4-8 10-11 10-11s6 3 10 11"></path>
+              <path d="M16 29h16"></path>
+              <path d="M16 33l-7 5"></path>
+              <path d="M32 33l7 5"></path>
+              <path d="M20 36l-4 9"></path>
+              <path d="M28 36l4 9"></path>
+              <path d="M24 20c-6 0-10 5-10 12s4 12 10 12 10-5 10-12-4-12-10-12z"></path>
+            </g>
+            <path d="M24 22v16" stroke="rgba(122,224,116,0.75)" stroke-width="2.4" stroke-linecap="round"></path>
+          </svg>
+        </span>
+      </a>
+      <div class="logo-word" aria-hidden="true">
+        <span class="logo-letter" style="--index:0" data-char="B">B</span>
+        <span class="logo-letter" style="--index:1" data-char="U">U</span>
+        <span class="logo-letter" style="--index:2" data-char="G">G</span>
+        <span class="logo-letter" style="--index:3" data-char="">&nbsp;</span>
+        <span class="logo-letter" style="--index:4" data-char="B">B</span>
+        <span class="logo-letter" style="--index:5" data-char="A">A</span>
+        <span class="logo-letter" style="--index:6" data-char="S">S</span>
+        <span class="logo-letter" style="--index:7" data-char="H">H</span>
+      </div>
+      <p id="logo-heading" class="logo-tagline">Bug Bash 2025 • NST×SVYASA Bengaluru • 24-hour hackathon</p>
     </div>
-  </header>
+  </section>
 
   <main class="hero">
     <section class="panel" data-animate aria-labelledby="hero-title">

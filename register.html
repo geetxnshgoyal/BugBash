@@ -77,7 +77,7 @@
       <h1 class="title"><span class="glitch" data-text="Tell us about your build">Tell us about your build</span></h1>
       <p class="lead">We review every submission, pair up teams where needed, and send you logistics details before kickoff. Share enough context so mentors can support you from the get-go.</p>
       <ul class="checklist">
-        <li>Describe the problem you want to solve and your proposed approach.</li>
+        <li>Tell us how you heard about Bug Bash and what excites you about it.</li>
         <li>List technologies, APIs, or datasets you expect to use.</li>
         <li>Drop any relevant GitHub/portfolio links so we know your style.</li>
       </ul>
@@ -116,8 +116,8 @@
             <input type="url" name="project_link" placeholder="https://">
           </label>
         </div>
-        <label>Problem you want to solve
-          <textarea name="problem" placeholder="What challenge are you tackling?" required></textarea>
+        <label>How did you hear about us?
+          <textarea name="referral" placeholder="Friends, social media, campus announcement, etc." required></textarea>
         </label>
         <label>Additional notes for organizers <small class="note" style="margin:0">(optional)</small>
           <textarea name="notes" placeholder="Dietary needs, travel info, accessibility, etc." rows="2"></textarea>
@@ -316,6 +316,7 @@ form.addEventListener('submit',async(e)=>{
     data[key]=typeof value==='string'?value.trim():value;
   }
   const phoneRaw=data.phone||'';
+  data.problem=data.problem||data.referral||'';
   const normalizedPhone=normalizePhone(phoneRaw);
   const dobValue=data.dob||'';
   const age=calcAgeYears(dobValue);
@@ -336,7 +337,13 @@ form.addEventListener('submit',async(e)=>{
   const fallbackTitle=data.problem?data.problem.slice(0,80):`${data.full_name||'Participant'} project`;
   data.project_title=data.project_title||fallbackTitle;
   const originalNotes=data.notes||'';
-  const notesDetails=[originalNotes,`Phone: ${phoneRaw}`,`DOB: ${dobValue}`,`T-shirt size: ${sizeValue}`].filter(Boolean).join('\n');
+  const notesDetails=[
+    originalNotes,
+    data.referral?`Heard via: ${data.referral}`:'',
+    `Phone: ${phoneRaw}`,
+    `DOB: ${dobValue}`,
+    `T-shirt size: ${sizeValue}`
+  ].filter(Boolean).join('\n');
   data.notes=notesDetails;
   showMsg('Submitting...');
   submitBtn.disabled=true;
