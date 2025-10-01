@@ -640,7 +640,7 @@ const processGithubToken=async token=>{
       }
     }
     const displayName=(githubProfileData.name||githubProfileData.login||'').trim()||'GitHub user';
-    setGithubStatus(`Connected as ${displayName}. Review and submit the form.`, 'success');
+    setGithubStatus('Review your details and submit the form.', 'success');
   }catch(err){
     console.error('GitHub profile fetch failed',err);
     githubSessionToken=previousSession;
