@@ -320,8 +320,32 @@ app.get('/api/auth/github/callback', async (req, res) => {
       profileUrl: profile.html_url || ''
     };
 
+    let alreadyRegistered = false;
+    try {
+      const candidateEmail = profileData.email ? profileData.email.toLowerCase() : '';
+      if (candidateEmail) {
+        const existingByEmail = await registrationsCollection
+          .where('leader_email_lower', '==', candidateEmail)
+          .limit(1)
+          .get();
+        alreadyRegistered = !existingByEmail.empty;
+      }
+      if (!alreadyRegistered) {
+        const githubLogin = (profileData.login || '').trim();
+        if (githubLogin) {
+          const existingByGithub = await registrationsCollection
+            .where('github_login', '==', githubLogin)
+            .limit(1)
+            .get();
+          alreadyRegistered = !existingByGithub.empty;
+        }
+      }
+    } catch (lookupErr) {
+      console.error('Failed to check existing GitHub registration', lookupErr);
+    }
+
     const profileToken = crypto.randomBytes(24).toString('hex');
-    githubProfiles.set(profileToken, { createdAt: Date.now(), profile: profileData });
+    githubProfiles.set(profileToken, { createdAt: Date.now(), profile: profileData, alreadyRegistered });
 
     const target = sanitizeReturnTo(stateRecord.returnTo || '/register.html');
     const separator = target.includes('?') ? '&' : '?';
@@ -343,8 +367,8 @@ app.get('/api/auth/github/profile/:token', (req, res) => {
   const record = githubProfiles.get(token);
   githubProfiles.delete(token);
   const sessionToken = crypto.randomBytes(24).toString('hex');
-  githubSessions.set(sessionToken, { createdAt: Date.now(), profile: record.profile });
-  res.json({ ok: true, profile: record.profile, sessionToken });
+  githubSessions.set(sessionToken, { createdAt: Date.now(), profile: record.profile, alreadyRegistered: record.alreadyRegistered });
+  res.json({ ok: true, profile: record.profile, sessionToken, alreadyRegistered: Boolean(record.alreadyRegistered) });
 });
 
 // register

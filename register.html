@@ -343,6 +343,7 @@ const formBody=document.querySelector('[data-form-body]');
 let githubSessionToken='';
 let githubConnected=false;
 let githubProfileData=null;
+let githubAlreadyRegistered=false;
 let formLocked=true;
 if(formBody){
   formBody.hidden=true;
@@ -622,12 +623,10 @@ const processGithubToken=async token=>{
     }
     githubSessionToken=payload.sessionToken;
     githubProfileData=payload.profile;
+    githubAlreadyRegistered=Boolean(payload.alreadyRegistered);
     githubConnected=true;
     prefillFromGithub(githubProfileData);
     clearMsg();
-    if(formLocked){
-      unlockForm();
-    }
     if(githubAuthBlock){
       githubAuthBlock.classList.add('is-connected');
     }
@@ -640,6 +639,18 @@ const processGithubToken=async token=>{
       }
     }
     const displayName=(githubProfileData.name||githubProfileData.login||'').trim()||'GitHub user';
+    if(githubAlreadyRegistered){
+      formLocked=true;
+      if(formBody){
+        formBody.hidden=true;
+      }
+      setFormEnabled(false);
+      setGithubStatus(`You already registered as ${displayName}. We'll see you at Bug Bash!`, 'success');
+      return;
+    }
+    if(formLocked){
+      unlockForm();
+    }
     setGithubStatus('Review your details and submit the form.', 'success');
   }catch(err){
     console.error('GitHub profile fetch failed',err);
@@ -695,6 +706,10 @@ form.addEventListener('submit',async(e)=>{
   }
   if(!githubConnected||!githubSessionToken){
     showMsg(errorMessages.github_required,'error');
+    return;
+  }
+  if(githubAlreadyRegistered){
+    showMsg('You already registered with this GitHub account. We\'ll see you at Bug Bash!', 'success');
     return;
   }
   const entries=new FormData(form).entries();
