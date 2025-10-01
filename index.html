@@ -14,7 +14,7 @@
     radial-gradient(1200px 600px at 10% 10%, rgba(123,224,74,0.03), transparent),
     linear-gradient(180deg,var(--bg1),var(--bg2));color:var(--white)}
   #bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.65}
-  .wrap{position:relative;z-index:2;max-width:1200px;margin:32px auto;padding:28px}
+  .wrap{position:relative;z-index:2;max-width:1200px;margin:18px auto 32px;padding:24px}
   /* Hero identity */
   .crest{position:relative;width:92px;height:92px;border-radius:26px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;overflow:hidden;box-shadow:0 18px 34px rgba(8,18,30,0.55);background:radial-gradient(circle at 30% 25%,rgba(126,255,192,0.28),rgba(9,20,28,0.92));transition:transform .28s ease,box-shadow .28s ease;isolation:isolate}
   .crest::before{content:"";position:absolute;inset:12px;border-radius:22px;background:linear-gradient(145deg,rgba(6,22,28,0.95),rgba(10,30,40,0.78));box-shadow:inset 0 0 24px rgba(123,224,74,0.25);z-index:1}
@@ -30,7 +30,7 @@
   @media(max-width:640px){.crest{width:82px;height:82px}.crest--xl{width:110px;height:110px}}
   @media(max-width:480px){.crest{width:74px;height:74px}.crest--xl{width:96px;height:96px}.crest--xl::before{inset:14px}}
   @media (prefers-reduced-motion: reduce){.crest,.crest-ring,.crest-glow{animation:none!important}}
-  .logo-stage{min-height:50vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:32px 0 12px;position:relative}
+  .logo-stage{display:flex;align-items:center;justify-content:center;text-align:center;padding:24px 0 8px;position:relative}
   .logo-stage__inner{display:flex;flex-direction:column;align-items:center;gap:22px;max-width:520px}
   .logo-word{display:inline-flex;gap:12px;font-size:52px;font-weight:900;text-transform:uppercase;letter-spacing:.16em;color:var(--white)}
   .logo-letter{position:relative;display:inline-block;opacity:0;transform:translateY(18px) scale(.9);animation:letter-pop 3.6s ease-in-out infinite;animation-delay:calc(var(--index)*0.18s);padding:0 1px}
@@ -41,11 +41,11 @@
   .logo-tagline{color:var(--muted);font-size:15px;margin:0;letter-spacing:.12em;text-transform:uppercase}
   @media(max-width:720px){.logo-stage{padding:28px 0 10px}.logo-word{font-size:40px;letter-spacing:.12em;gap:10px}.logo-tagline{font-size:13px;letter-spacing:.1em}}
   @media(max-width:480px){.logo-word{font-size:32px;letter-spacing:.09em;gap:6px}.logo-tagline{font-size:12px;letter-spacing:.08em}}
-  .hero{display:grid;grid-template-columns:1fr 420px;gap:28px;margin-top:0;align-items:center;justify-content:center;min-height:50vh}
+  .hero{display:grid;grid-template-columns:1fr 420px;gap:28px;margin-top:0;align-items:stretch;justify-content:center}
   @media(max-width:920px){.hero{grid-template-columns:1fr}}
   [data-animate]{opacity:0;transform:translateY(28px);transition:opacity .7s ease,transform .7s ease;will-change:opacity,transform}
   [data-animate].is-visible{opacity:1;transform:translateY(0)}
-  .panel{position:relative;background:linear-gradient(180deg,var(--glass),transparent);padding:28px;border-radius:14px;box-shadow:var(--shadow);backdrop-filter:blur(6px);overflow:hidden}
+  .panel{position:relative;background:linear-gradient(180deg,var(--glass),transparent);padding:28px;border-radius:14px;box-shadow:var(--shadow);backdrop-filter:blur(6px);overflow:hidden;display:flex;flex-direction:column;height:100%}
   .panel::after{content:'';position:absolute;inset:-30%;background:radial-gradient(circle at center,rgba(123,224,74,0.12) 0,rgba(123,224,74,0) 60%);opacity:0;animation:panel-glow 6s ease-in-out infinite;pointer-events:none}
   .title{font-size:44px;line-height:1.05;margin:0 0 8px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
   .lead{color:var(--muted);font-size:16px;margin:0 0 18px}
