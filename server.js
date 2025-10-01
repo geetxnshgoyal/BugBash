@@ -18,7 +18,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || process.env.ADMIN_KEY || '';
 const SESSION_TTL_MS = Number(process.env.ADMIN_SESSION_TTL_MS || 1000 * 60 * 60 * 6);
 const REGISTRATION_OPEN = process.env.REGISTRATION_OPEN !== 'false';
@@ -626,5 +625,4 @@ app.get('/admin', (_req, res) => res.sendFile(path.join(__dirname, 'admin.html')
 app.get('/register', (_req, res) => res.sendFile(path.join(__dirname, 'register.html')));
 app.use((_req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
-// --- Start ---
-app.listen(PORT, () => console.log(`Bug Bash server listening on :${PORT}`));
+export default app;
