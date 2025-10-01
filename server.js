@@ -184,20 +184,15 @@ const mapRegistration = (doc) => {
     created_at: createdAt,
     leader_name: data.leader_name || '',
     leader_email: data.leader_email || '',
-    problem: data.problem || '',
-    solution: data.solution || '',
-    tech_stack: data.tech_stack || '',
-    profile_link: data.profile_link || data.project_link || '',
+    profile_link: data.profile_link || '',
     github_login: data.github_login || '',
     github_profile_url: data.github_profile_url || data.profile_link || '',
     notes: data.notes || '',
-    members_text: data.members_text || '',
-    idea: data.idea || '',
     ip: data.ip || '',
     phone: data.phone || '',
     dob: data.dob || '',
     tshirt_size: data.tshirt_size || data.size || '',
-    heard_from: data.heard_from || data.problem || ''
+    heard_from: data.heard_from || ''
   };
 };
 
@@ -421,9 +416,6 @@ app.post('/api/register', async (req, res) => {
     if (parts.length >= 2) leaderEmailRaw = parts[1].trim();
   }
 
-  let problemStatement = String(payload.problem ?? payload.idea ?? '').trim();
-  const solutionOverview = String(payload.solution ?? '').trim();
-  const techStack = String(payload.tech_stack ?? payload.members ?? '').trim();
   const notesRaw = String(payload.notes ?? payload.additional_notes ?? '').trim();
   const linkInput = String(payload.profile_link ?? payload.project_link ?? payload.link ?? '').trim();
   let link = linkInput && !/^https?:\/\//i.test(linkInput) ? `https://${linkInput}` : linkInput;
@@ -463,12 +455,6 @@ app.post('/api/register', async (req, res) => {
   const captchaToken = String(payload.captchaToken ?? payload['g-recaptcha-response'] ?? '').trim();
   delete payload.captchaToken;
   delete payload['g-recaptcha-response'];
-  if (!problemStatement && heardFrom) {
-    problemStatement = heardFrom;
-  }
-  if (!problemStatement) {
-    problemStatement = 'Not specified yet';
-  }
 
   if (!leader_name || !leaderEmailRaw) {
     return res.status(400).json({ ok: false, error: 'missing_fields' });
@@ -516,13 +502,6 @@ app.post('/api/register', async (req, res) => {
       return res.status(409).json({ ok: false, error: 'email_exists' });
     }
 
-    const ideaParts = [];
-    if (heardFrom) ideaParts.push(`Heard via: ${heardFrom}`);
-    if (solutionOverview) ideaParts.push(`Solution: ${solutionOverview}`);
-    if (techStack) ideaParts.push(`Tech stack: ${techStack}`);
-    const ideaCombined = ideaParts.join('\n') || problemStatement;
-    const membersText = techStack ? `Tech stack: ${techStack}` : 'Not provided';
-
     const docRef = registrationsCollection.doc();
     const createdAtIso = new Date().toISOString();
     await docRef.set({
@@ -533,12 +512,7 @@ app.post('/api/register', async (req, res) => {
       github_profile_url: githubProfileUrl,
       github_avatar: githubAvatar,
       github_connected_at: FieldValue.serverTimestamp(),
-      members_text: membersText,
-      idea: ideaCombined,
       ip: req.headers['x-forwarded-for']?.toString() || req.socket.remoteAddress || '',
-      problem: problemStatement,
-      solution: solutionOverview,
-      tech_stack: techStack,
       profile_link: link,
       notes: notesRaw,
       phone: normalizedPhone,
