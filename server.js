@@ -5,9 +5,14 @@ import express from 'express';
 import cors from 'cors';
 import admin from 'firebase-admin';
 import crypto from 'crypto';
+import fetch from 'node-fetch';
 import { fileURLToPath } from 'url';
 
 dotenv.config();
+
+if (typeof globalThis.fetch !== 'function') {
+  globalThis.fetch = fetch;
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
