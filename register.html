@@ -604,6 +604,8 @@ const startGithubOAuth=()=>{
     setGithubStatus(errorMessages.registrations_closed,'error');
     return;
   }
+  const labelSpan=githubBtn.querySelector('span');
+  if(labelSpan){labelSpan.textContent='Continue with GitHub';}
   githubBtn.disabled=true;
   githubBtn.classList.add('is-submitting');
   setGithubStatus('Redirecting to GitHub...',null);
@@ -681,8 +683,10 @@ const processGithubToken=async token=>{
     if(githubBtn){
       githubBtn.disabled=false;
       githubBtn.classList.remove('is-submitting');
+      const label=githubBtn.querySelector('span');
+      if(label){label.textContent='Retry GitHub';}
     }
-    setGithubStatus('Could not load your GitHub details. Please try again.', 'error');
+    setGithubStatus('GitHub session expired. Hit “Continue with GitHub” again to refresh.', 'error');
   }
 };
 
