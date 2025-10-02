@@ -189,6 +189,13 @@
   <img src="/assets/bugbash_logo.png" alt="Bug Bash logo" onerror="this.src='/assets/bugbash_logo.png?bust=1'">
 </a>
 <script>
+if('onpageshow' in window){
+  window.addEventListener('pageshow',event=>{
+    if(event.persisted){
+      window.location.reload();
+    }
+  });
+}
 /* bg */
 const canvas=document.getElementById('bg-canvas');
 const ctx=canvas.getContext('2d');
@@ -338,6 +345,7 @@ const GITHUB_AUTH_ENABLED=Boolean(appConfig.githubAuthEnabled);
 const githubAuthBlock=document.querySelector('[data-github-auth]');
 const githubBtn=document.getElementById('githubSignIn');
 const githubStatus=document.getElementById('githubStatus');
+const githubHint=document.querySelector('.github-auth__hint');
 const githubUserLabel=document.querySelector('[data-github-user]');
 const formBody=document.querySelector('[data-form-body]');
 let githubSessionToken='';
@@ -653,6 +661,7 @@ const processGithubToken=async token=>{
       setTimeout(()=>{window.location.href='/'},2800);
       return;
     }
+    if(githubHint){githubHint.hidden=true;}
     if(formLocked){
       unlockForm();
     }
@@ -666,6 +675,7 @@ const processGithubToken=async token=>{
       githubUserLabel.textContent='';
       githubUserLabel.hidden=true;
     }
+    if(!githubConnected&&githubHint){githubHint.hidden=false;}
     if(!wasConnected&&githubAuthBlock){
       githubAuthBlock.classList.remove('is-connected');
     }

@@ -12,8 +12,10 @@
   #bg-canvas{position:fixed;inset:0;pointer-events:none;opacity:.7;z-index:0}
   .wrap{position:relative;z-index:2;max-width:1100px;margin:32px auto;padding:0 24px 64px;display:flex;flex-direction:column;gap:28px}
   header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
-  header h1{font-size:26px;margin:0;font-weight:700;letter-spacing:.4px}
-  header a{color:var(--accent);text-decoration:none;font-size:14px}
+  header h1{font-size:28px;margin:0;font-weight:800;letter-spacing:.5px;display:flex;align-items:center;gap:12px}
+  header h1::before{content:'🔒';font-size:24px;filter:drop-shadow(0 4px 10px rgba(123,224,74,0.5))}
+  header a{color:var(--accent);text-decoration:none;font-size:14px;position:relative}
+  header a:hover::after{content:'🚀';position:absolute;right:-20px;animation:float 1.4s ease-in-out infinite}
   .hero-stage{display:flex;justify-content:center;align-items:center;min-height:55vh;position:relative}
   .panel{position:relative;background:linear-gradient(180deg,var(--glass),transparent);border-radius:16px;padding:28px;box-shadow:var(--shadow);backdrop-filter:blur(8px);overflow:hidden}
   .panel::after{content:'';position:absolute;inset:-35%;background:radial-gradient(circle,rgba(123,224,74,0.12) 0,rgba(123,224,74,0) 60%);opacity:0;animation:panel-glow 6.6s ease-in-out infinite;pointer-events:none}
@@ -37,7 +39,7 @@
   .toolbar-actions a:hover{transform:translateY(-1px);box-shadow:0 12px 26px rgba(123,224,74,0.22)}
   .toolbar-actions a.ghost{background:transparent;color:var(--white);border:1px solid rgba(255,255,255,0.18)}
   .table-wrap{overflow-x:auto;border-radius:14px;border:1px solid rgba(255,255,255,0.08)}
-  table{width:100%;border-collapse:collapse;min-width:900px;background:rgba(9,14,25,0.55);backdrop-filter:blur(4px)}
+  table{width:100%;border-collapse:collapse;min-width:900px;background:rgba(9,14,25,0.55);backdrop-filter:blur(4px);animation:fadeIn 0.6s ease}
   th,td{border-bottom:1px solid rgba(255,255,255,0.06);padding:12px 14px;text-align:left;font-size:14px;vertical-align:top}
   th{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:600}
   tbody tr:hover{background:rgba(123,224,74,0.06)}
@@ -48,6 +50,8 @@
   @keyframes panel-glow{0%,100%{opacity:0;transform:scale(0.75)}40%{opacity:.32;transform:scale(1)}}
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
   @keyframes ring{0%{opacity:.55;transform:scale(0.7)}60%{opacity:0;transform:scale(1.4)}100%{opacity:0;transform:scale(1.6)}}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  @keyframes fadeIn{0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:translateY(0)}}
 </style>
 </head>
 <body>
