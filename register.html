@@ -658,7 +658,6 @@ const processGithubToken=async token=>{
       setFormEnabled(false);
       setGithubStatus('', null);
       showSuccessModal(`You already registered as ${displayName}. We'll see you at Bug Bash!`);
-      setTimeout(()=>{window.location.href='/'},2800);
       return;
     }
     if(githubHint){githubHint.hidden=true;}
@@ -725,7 +724,6 @@ form.addEventListener('submit',async(e)=>{
   }
   if(githubAlreadyRegistered){
     showSuccessModal('You already registered with this GitHub account. We\'ll see you at Bug Bash!');
-    setTimeout(()=>{window.location.href='/'},2800);
     return;
   }
   const entries=new FormData(form).entries();
