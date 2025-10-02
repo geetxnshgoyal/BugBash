@@ -63,8 +63,6 @@
   .github-auth__hint{font-size:13px;color:var(--muted);margin:0}
   .github-auth__user{font-size:13px;color:var(--accent);margin:0}
   .github-auth__user[hidden]{display:none}
-  .github-auth__already{font-size:13px;color:var(--accent);margin:0;display:none;padding:12px;border-radius:10px;background:rgba(123,224,74,0.12);border:1px solid rgba(123,224,74,0.4);box-shadow:0 10px 26px rgba(123,224,74,0.12)}
-  .github-auth__already.is-visible{display:block}
   .form-divider{position:relative;text-align:center;font-size:12px;text-transform:uppercase;letter-spacing:0.18em;color:var(--muted);margin-top:6px;padding-top:6px}
   .form-divider::before,.form-divider::after{content:'';position:absolute;top:50%;width:32%;height:1px;background:rgba(255,255,255,0.12)}
   .form-divider::before{left:0}
@@ -125,7 +123,6 @@
           <p class="github-auth__hint">Connect with GitHub to unlock the registration form. Your phone number stays private.</p>
           <p class="github-auth__user" data-github-user hidden></p>
           <p class="note" id="githubStatus" role="status" aria-live="polite" hidden></p>
-          <div class="github-auth__already" data-github-registered hidden></div>
         </div>
         <div class="form-body" data-form-body hidden>
           <div class="form-divider" aria-hidden="true">Complete your registration</div>
@@ -342,7 +339,6 @@ const githubAuthBlock=document.querySelector('[data-github-auth]');
 const githubBtn=document.getElementById('githubSignIn');
 const githubStatus=document.getElementById('githubStatus');
 const githubUserLabel=document.querySelector('[data-github-user]');
-const githubAlreadyBox=document.querySelector('[data-github-registered]');
 const formBody=document.querySelector('[data-form-body]');
 let githubSessionToken='';
 let githubConnected=false;
@@ -361,9 +357,6 @@ if(githubAuthBlock){
       githubBtn.disabled=true;
     }
   }
-}
-if(githubAlreadyBox){
-  githubAlreadyBox.hidden=true;
 }
 let recaptchaReadyPromise=null;
 const submitBtnDefaultText=submitBtn.textContent.trim();
@@ -624,11 +617,6 @@ const processGithubToken=async token=>{
   githubSessionToken='';
   githubProfileData=null;
   githubAlreadyRegistered=false;
-  if(githubAlreadyBox){
-    githubAlreadyBox.hidden=true;
-    githubAlreadyBox.classList.remove('is-visible');
-    githubAlreadyBox.textContent='';
-  }
   setGithubStatus('Loading GitHub details...',null);
   try{
     const response=await fetch(`/api/auth/github/profile/${encodeURIComponent(token)}`,{headers:{Accept:'application/json'}});
@@ -661,11 +649,8 @@ const processGithubToken=async token=>{
       }
       setFormEnabled(false);
       setGithubStatus('', null);
-      if(githubAlreadyBox){
-        githubAlreadyBox.textContent=`You already registered as ${displayName}. We'll see you at Bug Bash!`;
-        githubAlreadyBox.hidden=false;
-        githubAlreadyBox.classList.add('is-visible');
-      }
+      showSuccessModal(`You already registered as ${displayName}. We'll see you at Bug Bash!`);
+      setTimeout(()=>{window.location.href='/'},2800);
       return;
     }
     if(formLocked){

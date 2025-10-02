@@ -6,6 +6,7 @@ import cors from 'cors';
 import admin from 'firebase-admin';
 import crypto from 'crypto';
 import fetch from 'node-fetch';
+import nodemailer from 'nodemailer';
 import { fileURLToPath } from 'url';
 
 dotenv.config();
@@ -34,6 +35,69 @@ const githubProfiles = new Map();
 const githubSessions = new Map();
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}$/;
 const INDIAN_MOBILE_REGEX = /^[6-9][0-9]{9}$/;
+const SMTP_HOST = process.env.SMTP_HOST?.trim();
+const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
+const SMTP_USER = process.env.SMTP_USERNAME?.trim();
+const SMTP_PASS = process.env.SMTP_PASSWORD;
+const EMAIL_FROM = process.env.EMAIL_FROM?.trim() || 'Bug Bash <updates@bugbash.me>';
+
+let mailTransporter = null;
+if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
+  try {
+    mailTransporter = nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_PORT === 465,
+      auth: { user: SMTP_USER, pass: SMTP_PASS }
+    });
+  } catch (mailErr) {
+    console.error('Failed to configure mail transporter', mailErr);
+  }
+}
+
+const sendConfirmationEmail = async ({ to, name, tshirtSize, profileLink, heardFrom }) => {
+  if (!mailTransporter || !to) return;
+  const firstName = (name || '').split(' ')[0] || 'there';
+  const safeSize = tshirtSize || 'Will be confirmed at check-in';
+  const safeHeard = heardFrom || '—';
+  const safeProfile = profileLink || '—';
+
+  const message = {
+    from: EMAIL_FROM,
+    to,
+    subject: 'Bug Bash 2025 — registration confirmed 🎉',
+    text: `Hi ${firstName},\n\nThanks for registering for Bug Bash 2025!\n\nEvent: 14–15 March 2025, SVYASA Bengaluru\nT-shirt size: ${safeSize}\nHow you heard about us: ${safeHeard}\nPortfolio: ${safeProfile}\n\nWe will follow up soon with teams, the detailed schedule, and logistics.\nIf you need anything in the meantime, reply to this email or write to contact@bugbash.me.\n\nSee you at the kickoff!\n— Bug Bash team`,
+    html: `
+      <p>Hi ${firstName},</p>
+      <p>Thanks for signing up for <strong>Bug Bash 2025</strong>! We'll share teams, the detailed schedule, and logistics soon.</p>
+      <p><strong>Event:</strong> 14–15 March 2025 · SVYASA Bengaluru</p>
+      <table style="border-collapse:collapse;margin:18px 0 22px;width:100%;max-width:520px;font-size:14px;color:#cfd7e1;">
+        <tbody>
+          <tr>
+            <td style="padding:8px 12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.03);">T-shirt size</td>
+            <td style="padding:8px 12px;border:1px solid rgba(255,255,255,0.1);">${safeSize}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.03);">How you heard about us</td>
+            <td style="padding:8px 12px;border:1px solid rgba(255,255,255,0.1);">${safeHeard}</td>
+          </tr>
+          <tr>
+            <td style="padding:8px 12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.03);">Portfolio / GitHub</td>
+            <td style="padding:8px 12px;border:1px solid rgba(255,255,255,0.1);">${profileLink ? `<a style="color:#7be04a;" href="${profileLink}">${profileLink}</a>` : '—'}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>If you have any questions, just reply to this email or write to <a href="mailto:contact@bugbash.me">contact@bugbash.me</a>.</p>
+      <p>See you at the kickoff!<br/>— Bug Bash team</p>
+    `
+  };
+
+  try {
+    await mailTransporter.sendMail(message);
+  } catch (err) {
+    console.error('Confirmation email failed', err);
+  }
+};
 
 const createSession = (username) => {
   const token = crypto.randomBytes(32).toString('hex');
@@ -520,6 +584,14 @@ app.post('/api/register', async (req, res) => {
       heard_from: heardFrom,
       created_at: createdAtIso,
       created_at_ts: FieldValue.serverTimestamp()
+    });
+
+    sendConfirmationEmail({
+      to: leaderEmailRaw,
+      name: leader_name || githubProfile?.name || githubProfile?.login || '',
+      tshirtSize,
+      profileLink: link,
+      heardFrom
     });
 
     return res.status(201).json({ ok: true, id: docRef.id });
