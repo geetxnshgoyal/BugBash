@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <link rel="icon" type="image/png" href="assets/bugbash_logo.png"/>
-<title>Register — Bug Bash 2025</title>
+<title>Register Bug Bash 2025</title>
 <meta name="description" content="Register for Bug Bash 2025 at SVYASA Bengaluru. Share your project idea, tools, and contact details.">
 <script src="/env.js"></script>
 <style>
@@ -714,7 +714,8 @@ form.addEventListener('submit',async(e)=>{
     return;
   }
   if(githubAlreadyRegistered){
-    showMsg('You already registered with this GitHub account. We\'ll see you at Bug Bash!', 'success');
+    showSuccessModal('You already registered with this GitHub account. We\'ll see you at Bug Bash!');
+    setTimeout(()=>{window.location.href='/'},2800);
     return;
   }
   const entries=new FormData(form).entries();

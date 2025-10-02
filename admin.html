@@ -3,17 +3,18 @@
 <head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <link rel="icon" type="image/png" href="assets/bugbash_logo.png"/>
-<title>Bug Bash — Admin</title>
+<title>Bug Bash Admin</title>
 <style>
   :root{--bg1:#0f1720;--bg2:#0b1020;--accent:#7be04a;--glass:rgba(255,255,255,0.08);--muted:#9aa6bf;--white:#f7f8fa;--shadow:0 12px 30px rgba(2,6,23,0.55);--danger:#f87171}
   html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;background:
     radial-gradient(1200px 600px at 12% 8%, rgba(123,224,74,0.06), transparent),
     linear-gradient(180deg,var(--bg1),var(--bg2));color:var(--white)}
   #bg-canvas{position:fixed;inset:0;pointer-events:none;opacity:.7;z-index:0}
-  .wrap{position:relative;z-index:2;max-width:1100px;margin:36px auto;padding:0 24px 48px}
+  .wrap{position:relative;z-index:2;max-width:1100px;margin:32px auto;padding:0 24px 64px;display:flex;flex-direction:column;gap:28px}
   header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
   header h1{font-size:26px;margin:0;font-weight:700;letter-spacing:.4px}
   header a{color:var(--accent);text-decoration:none;font-size:14px}
+  .hero-stage{display:flex;justify-content:center;align-items:center;min-height:55vh;position:relative}
   .panel{position:relative;background:linear-gradient(180deg,var(--glass),transparent);border-radius:16px;padding:28px;box-shadow:var(--shadow);backdrop-filter:blur(8px);overflow:hidden}
   .panel::after{content:'';position:absolute;inset:-35%;background:radial-gradient(circle,rgba(123,224,74,0.12) 0,rgba(123,224,74,0) 60%);opacity:0;animation:panel-glow 6.6s ease-in-out infinite;pointer-events:none}
   #login-card{max-width:420px;margin:0 auto}
@@ -27,7 +28,7 @@
   button.ghost{background:transparent;color:var(--white);border:1px solid rgba(255,255,255,0.18);box-shadow:none}
   .status{font-size:13px;color:var(--muted);margin-top:12px;min-height:18px}
   .status.error{color:var(--danger)}
-  #dashboard{display:flex;flex-direction:column;gap:18px}
+  #dashboard{display:none;flex-direction:column;gap:18px}
   .toolbar{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;align-items:center}
   .toolbar strong{font-size:18px}
   .toolbar-actions{display:flex;gap:12px;flex-wrap:wrap}
@@ -36,7 +37,7 @@
   .toolbar-actions a:hover{transform:translateY(-1px);box-shadow:0 12px 26px rgba(123,224,74,0.22)}
   .toolbar-actions a.ghost{background:transparent;color:var(--white);border:1px solid rgba(255,255,255,0.18)}
   .table-wrap{overflow-x:auto;border-radius:14px;border:1px solid rgba(255,255,255,0.08)}
-  table{width:100%;border-collapse:collapse;min-width:780px;background:rgba(9,14,25,0.55);backdrop-filter:blur(4px)}
+  table{width:100%;border-collapse:collapse;min-width:900px;background:rgba(9,14,25,0.55);backdrop-filter:blur(4px)}
   th,td{border-bottom:1px solid rgba(255,255,255,0.06);padding:12px 14px;text-align:left;font-size:14px;vertical-align:top}
   th{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:600}
   tbody tr:hover{background:rgba(123,224,74,0.06)}
@@ -57,19 +58,21 @@
     <a href="/">&larr; Back to site</a>
   </header>
 
-  <section id="login-card" class="panel">
-    <h2 style="margin:0 0 14px">Admin login</h2>
-    <p style="margin:0 0 20px;color:var(--muted);font-size:14px">Paste the admin access token configured on the server.</p>
-    <form id="loginForm">
-      <label>Access token
-        <input id="adminToken" type="password" autocomplete="off" required placeholder="••••••">
-      </label>
-      <button type="submit">Sign in</button>
-    </form>
-    <div id="loginStatus" class="status"></div>
+  <section class="hero-stage">
+    <div id="login-card" class="panel" style="max-width:400px;text-align:center">
+      <h2 style="margin:0 0 12px;font-size:24px;letter-spacing:.02em">Admin login</h2>
+      <p style="margin:0 0 22px;color:var(--muted);font-size:14px">Enter the admin access token to view registrations.</p>
+      <form id="loginForm" style="display:flex;flex-direction:column;gap:16px">
+        <label style="margin:0;text-align:left">Access token
+          <input id="adminToken" type="password" autocomplete="off" required placeholder="••••••">
+        </label>
+        <button type="submit" style="align-self:center;width:120px">Sign in</button>
+      </form>
+      <div id="loginStatus" class="status" style="margin-top:16px;text-align:center"></div>
+    </div>
   </section>
 
-  <section id="dashboard" class="panel" hidden>
+  <section id="dashboard" class="panel">
     <div class="toolbar">
       <div>
         <strong id="submissionCount">0 registrations</strong>
@@ -233,7 +236,6 @@ const refreshBtn=document.getElementById('refreshBtn');
 const logoutBtn=document.getElementById('logoutBtn');
 const csvBtn=document.getElementById('csvBtn');
 
-const STORAGE_KEY='bugbash-admin-token';
 let activeToken='';
 
 const setStatus=(el,text,isError=false)=>{
@@ -284,10 +286,10 @@ const renderRows=(rows=[])=>{
 const authHeaders=()=>activeToken?{Authorization:`Bearer ${activeToken}`}:{ };
 
 const resetToLogin=(message='',isError=false)=>{
-  sessionStorage.removeItem(STORAGE_KEY);
   activeToken='';
-  dashboard.hidden=true;
-  loginCard.hidden=false;
+  dashboard.style.display='none';
+  loginCard.parentElement.style.display='flex';
+  loginCard.style.display='block';
   tableBody.innerHTML='';
   emptyState.hidden=true;
   submissionCount.textContent='0 registrations';
@@ -326,8 +328,9 @@ const fetchRegistrations=async()=>{
 const enterDashboard=async()=>{
   const success=await fetchRegistrations();
   if(success){
-    loginCard.hidden=true;
-    dashboard.hidden=false;
+    loginCard.parentElement.style.display='none';
+    loginCard.style.display='none';
+    dashboard.style.display='flex';
   }
 };
 
@@ -357,7 +360,6 @@ loginForm.addEventListener('submit',async(e)=>{
       return;
     }
     activeToken=payload.token;
-    sessionStorage.setItem(STORAGE_KEY,activeToken);
     adminTokenInput.value='';
     setStatus(loginStatus,'');
     await enterDashboard();
@@ -413,11 +415,7 @@ logoutBtn.addEventListener('click',async()=>{
   resetToLogin('Logged out.');
 });
 
-const saved=sessionStorage.getItem(STORAGE_KEY);
-if(saved){
-  activeToken=saved;
-  enterDashboard().catch(()=>resetToLogin());
-}
+sessionStorage.removeItem(STORAGE_KEY);
 </script>
 </body>
 </html>

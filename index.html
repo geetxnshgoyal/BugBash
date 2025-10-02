@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <link rel="icon" type="image/png" href="assets/bugbash_logo.png"/>
-<title>Bug Bash 2025 — NST×SVYASA Bengaluru</title>
+<title>Bug Bash 2025 NST×SVYASA Bengaluru</title>
 <meta name="description" content="Bug Bash 2025 — 24 hour hackathon at SVYASA Bengaluru. Build. Code. Win.">
 <style>
   :root{--bg1:#0f1720;--bg2:#0b1020;--accent:#7be04a;--glass:rgba(255,255,255,0.06);
@@ -55,13 +55,16 @@
   .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--white)}
   .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:18px}
   @media(max-width:920px){.cards{grid-template-columns:1fr}}
-  .card{background:linear-gradient(180deg,var(--glass2),transparent);padding:18px;border-radius:12px}
+  .card{background:linear-gradient(180deg,var(--glass2),transparent);padding:18px;border-radius:12px;display:flex;flex-direction:column;gap:8px}
   .cards .card{transition:transform .25s ease,box-shadow .25s ease,opacity .7s ease}
   .cards .card:nth-child(1){transition-delay:.05s}
   .cards .card:nth-child(2){transition-delay:.12s}
   .cards .card:nth-child(3){transition-delay:.18s}
   .cards .card:hover{transform:translateY(-6px);box-shadow:0 18px 40px rgba(2,6,23,0.36)}
   .muted{color:var(--muted);font-size:14px}
+  .card-list{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-direction:column;gap:6px;color:var(--muted);font-size:14px}
+  .card-list li{position:relative;padding-left:16px}
+  .card-list li::before{content:'•';position:absolute;left:0;color:var(--accent);font-size:16px;line-height:1}
   .schedule{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
   @media(max-width:720px){.schedule{grid-template-columns:1fr}}
   .sponsors{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:16px}
@@ -179,9 +182,33 @@
       <p class="lead">Individual sign-up. Teams will be randomized 3–5 members each at kickoff.</p>
 
       <div class="cards">
-        <div class="card" data-animate><h4>Tracks</h4><div class="muted">AI for Good • Smart Campus • FinTech • Open Innovation</div></div>
-        <div class="card" data-animate><h4>Prizes</h4><div class="muted">Cash prizes, internships, cloud credits, gadgets.</div></div>
-        <div class="card" data-animate><h4>Schedule</h4><div class="muted"><strong>Day 1:</strong> Registration → Keynote → Hacking • <strong>Day 2:</strong> Demos → Judging → Awards</div></div>
+        <div class="card" data-animate>
+          <h4>Tracks</h4>
+          <ul class="card-list">
+            <li>AI & Agents for student life</li>
+            <li>Health & Wellness tech</li>
+            <li>FinTech & digital inclusion</li>
+            <li>Sustainability & smart campuses</li>
+          </ul>
+        </div>
+        <div class="card" data-animate>
+          <h4>Prizes</h4>
+          <ul class="card-list">
+            <li>Certificates</li>
+            <li>Partner internship interviews</li>
+            <li>Cloud & API credits for finalists</li>
+            <li>Swag kits and trophies</li>
+          </ul>
+        </div>
+        <div class="card" data-animate>
+          <h4>Schedule</h4>
+          <ul class="card-list">
+            <li>Day1 7:00 PM - Check-in & kickoff</li>
+            <li>Day1 1:00 PM - Hacking begins</li>
+            <li>Day2 10:00 AM - Mentorship & demos</li>
+            <li>Day2 1:00 PM - Pitches & awards</li>
+          </ul>
+        </div>
       </div>
     </section>
 
