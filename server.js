@@ -30,9 +30,15 @@ const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET?.trim() || '';
 const GITHUB_REDIRECT_URI = process.env.GITHUB_REDIRECT_URI?.trim();
 const GITHUB_STATE_TTL_MS = Number(process.env.GITHUB_STATE_TTL_MS || 1000 * 60 * 10);
 const GITHUB_PROFILE_TTL_MS = Number(process.env.GITHUB_PROFILE_TTL_MS || 1000 * 60 * 5);
-const githubStates = new Map();
-const githubProfiles = new Map();
-const githubSessions = new Map();
+const SITE_URL = (process.env.SITE_URL?.trim() || 'https://bugbash.me').replace(/\/+$/, '');
+const GOOGLE_SITE_VERIFICATION_META = process.env.GOOGLE_SITE_VERIFICATION?.trim();
+const GOOGLE_SITE_VERIFICATION_HTML = process.env.GOOGLE_SITE_VERIFICATION_HTML?.trim();
+const rawGithubTokenSecret =
+  process.env.GITHUB_TOKEN_SECRET?.trim() ||
+  process.env.SESSION_SECRET?.trim() ||
+  (GITHUB_CLIENT_SECRET ? `${GITHUB_CLIENT_SECRET}:${process.env.GITHUB_CLIENT_ID || ''}` : '') ||
+  ADMIN_TOKEN;
+const GITHUB_TOKEN_SECRET = rawGithubTokenSecret?.trim() || '';
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}$/;
 const INDIAN_MOBILE_REGEX = /^[6-9][0-9]{9}$/;
 const SMTP_HOST = process.env.SMTP_HOST?.trim();
@@ -59,14 +65,14 @@ const sendConfirmationEmail = async ({ to, name, tshirtSize, profileLink, heardF
   if (!mailTransporter || !to) return;
   const firstName = (name || '').split(' ')[0] || 'there';
   const safeSize = tshirtSize || 'Will be confirmed at check-in';
-  const safeHeard = heardFrom || '—';
-  const safeProfile = profileLink || '—';
+  const safeHeard = heardFrom || 'Not shared';
+  const safeProfile = profileLink || 'Not provided';
 
   const message = {
     from: EMAIL_FROM,
     to,
-    subject: 'Bug Bash 2025 — registration confirmed 🎉',
-    text: `Hi ${firstName},\n\nThanks for registering for Bug Bash 2025!\n\nEvent: 14–15 March 2025, SVYASA Bengaluru\nT-shirt size: ${safeSize}\nHow you heard about us: ${safeHeard}\nPortfolio: ${safeProfile}\n\nWe will follow up soon with teams, the detailed schedule, and logistics.\nIf you need anything in the meantime, reply to this email or write to contact@bugbash.me.\n\nSee you at the kickoff!\n— Bug Bash team`,
+    subject: 'Bug Bash 2025 - registration confirmed 🎉',
+    text: `Hi ${firstName},\n\nThanks for registering for Bug Bash 2025!\n\nEvent: 14–15 March 2025, SVYASA Bengaluru\nT-shirt size: ${safeSize}\nHow you heard about us: ${safeHeard}\nPortfolio: ${safeProfile}\n\nWe will follow up soon with teams, the detailed schedule, and logistics.\nIf you need anything in the meantime, reply to this email or write to contact@bugbash.me.\n\nSee you at the kickoff!\n- Bug Bash team`,
     html: `
       <p>Hi ${firstName},</p>
       <p>Thanks for signing up for <strong>Bug Bash 2025</strong>! We'll share teams, the detailed schedule, and logistics soon.</p>
@@ -83,12 +89,12 @@ const sendConfirmationEmail = async ({ to, name, tshirtSize, profileLink, heardF
           </tr>
           <tr>
             <td style="padding:8px 12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.03);">Portfolio / GitHub</td>
-            <td style="padding:8px 12px;border:1px solid rgba(255,255,255,0.1);">${profileLink ? `<a style="color:#7be04a;" href="${profileLink}">${profileLink}</a>` : '—'}</td>
+            <td style="padding:8px 12px;border:1px solid rgba(255,255,255,0.1);">${profileLink ? `<a style="color:#7be04a;" href="${profileLink}">${profileLink}</a>` : 'Not provided'}</td>
           </tr>
         </tbody>
       </table>
       <p>If you have any questions, just reply to this email or write to <a href="mailto:contact@bugbash.me">contact@bugbash.me</a>.</p>
-      <p>See you at the kickoff!<br/>— Bug Bash team</p>
+      <p>See you at the kickoff!<br/>- Bug Bash team</p>
     `
   };
 
@@ -156,37 +162,78 @@ const sanitizeReturnTo = (value) => {
   return trimmed;
 };
 
-const cleanupGithubArtifacts = () => {
-  const now = Date.now();
-  for (const [state, record] of githubStates.entries()) {
-    if (now - record.createdAt > GITHUB_STATE_TTL_MS) {
-      githubStates.delete(state);
-    }
+const encodeBase64Url = (buffer) => buffer.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+
+const decodeBase64Url = (value) => {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  let normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+  const padding = normalized.length % 4;
+  if (padding) {
+    normalized += '='.repeat(4 - padding);
   }
-  for (const [token, record] of githubProfiles.entries()) {
-    if (now - record.createdAt > GITHUB_PROFILE_TTL_MS) {
-      githubProfiles.delete(token);
-    }
-  }
-  for (const [sessionToken, record] of githubSessions.entries()) {
-    if (now - record.createdAt > GITHUB_PROFILE_TTL_MS) {
-      githubSessions.delete(sessionToken);
-    }
+  try {
+    return Buffer.from(normalized, 'base64');
+  } catch {
+    return null;
   }
 };
 
-if (GITHUB_CLIENT_ID && GITHUB_CLIENT_SECRET) {
-  const interval = Math.max(30000, Math.min(GITHUB_STATE_TTL_MS, GITHUB_PROFILE_TTL_MS));
-  setInterval(cleanupGithubArtifacts, interval).unref?.();
-}
+const safeCompare = (a, b) => {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const aBuffer = Buffer.from(a);
+  const bBuffer = Buffer.from(b);
+  if (aBuffer.length !== bBuffer.length) return false;
+  return crypto.timingSafeEqual(aBuffer, bBuffer);
+};
+
+const createSignedGithubToken = (payload) => {
+  if (!GITHUB_TOKEN_SECRET) {
+    throw new Error('GitHub token secret not configured. Set GITHUB_TOKEN_SECRET or SESSION_SECRET.');
+  }
+  const body = encodeBase64Url(Buffer.from(JSON.stringify(payload), 'utf8'));
+  const signature = encodeBase64Url(crypto.createHmac('sha256', GITHUB_TOKEN_SECRET).update(body).digest());
+  return `${body}.${signature}`;
+};
+
+const verifySignedGithubToken = (token) => {
+  if (!GITHUB_TOKEN_SECRET) return null;
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.trim().split('.');
+  if (parts.length !== 2) return null;
+  const [body, signature] = parts;
+  if (!body || !signature) return null;
+
+  const expectedSignature = encodeBase64Url(crypto.createHmac('sha256', GITHUB_TOKEN_SECRET).update(body).digest());
+  if (!safeCompare(signature, expectedSignature)) return null;
+
+  const raw = decodeBase64Url(body);
+  if (!raw) return null;
+  try {
+    const payload = JSON.parse(raw.toString('utf8'));
+    if (!payload || typeof payload !== 'object') return null;
+    if (typeof payload.exp === 'number' && Date.now() > payload.exp) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+};
+
+const isLocalHost = (host) => {
+  if (!host) return false;
+  const base = host.toLowerCase().split(':')[0];
+  return base === 'localhost' || base === '127.0.0.1';
+};
 
 const resolveGithubRedirectUri = (req) => {
-  if (GITHUB_REDIRECT_URI) return GITHUB_REDIRECT_URI;
-  const forwardedProto = req.headers['x-forwarded-proto']?.split(',')[0]?.trim();
-  const proto = forwardedProto || req.protocol || 'https';
   const forwardedHost = req.headers['x-forwarded-host']?.split(',')[0]?.trim();
-  const host = forwardedHost || req.get('host');
-  return `${proto}://${host}/api/auth/github/callback`;
+  const host = forwardedHost || req.get('host') || '';
+  if (GITHUB_REDIRECT_URI && !isLocalHost(host)) {
+    return GITHUB_REDIRECT_URI;
+  }
+  const forwardedProto = req.headers['x-forwarded-proto']?.split(',')[0]?.trim();
+  const proto = forwardedProto || req.protocol || 'http';
+  const effectiveHost = host || `localhost:${req.socket?.localPort || PORT || 3000}`;
+  return `${proto}://${effectiveHost}/api/auth/github/callback`;
 };
 
 // --- Firebase ---
@@ -263,13 +310,65 @@ const mapRegistration = (doc) => {
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use((req, res, next) => {
+  res.setHeader('X-Robots-Tag', 'index, follow');
+  if (GOOGLE_SITE_VERIFICATION_META) {
+    res.setHeader('X-Goog-Verification', GOOGLE_SITE_VERIFICATION_META);
+  }
+  next();
+});
 
 // static
+app.get('/favicon.ico', (_req, res) => {
+  res.type('image/png').sendFile(path.join(__dirname, 'assets', 'bugbash_logo.png'));
+});
+
+app.get('/robots.txt', (_req, res) => {
+  const lines = [
+    'User-agent: *',
+    'Allow: /',
+    '',
+    `Sitemap: ${SITE_URL}/sitemap.xml`
+  ];
+  res.type('text/plain').send(lines.join('\n'));
+});
+
+app.get('/sitemap.xml', (_req, res) => {
+  const pages = [
+    { loc: SITE_URL, changefreq: 'daily', priority: '1.0' },
+    { loc: `${SITE_URL}/register`, changefreq: 'weekly', priority: '0.8' }
+  ];
+  const now = new Date().toISOString();
+  const xml = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ...pages.map((page) => [
+      '  <url>',
+      `    <loc>${page.loc}</loc>`,
+      `    <lastmod>${now}</lastmod>`,
+      page.changefreq ? `    <changefreq>${page.changefreq}</changefreq>` : '',
+      page.priority ? `    <priority>${page.priority}</priority>` : '',
+      '  </url>'
+    ].filter(Boolean).join('\n')),
+    '</urlset>'
+  ].join('\n');
+  res.type('application/xml').send(xml);
+});
+
+if (GOOGLE_SITE_VERIFICATION_HTML) {
+  const sanitized = GOOGLE_SITE_VERIFICATION_HTML.replace(/^\/+/, '').replace(/[^a-zA-Z0-9._-]/g, '');
+  if (sanitized) {
+    app.get(`/${sanitized}`, (_req, res) => {
+      res.type('text/html').send(`google-site-verification: ${sanitized}`);
+    });
+  }
+}
+
 app.get('/env.js', (_req, res) => {
   const payload = {
     recaptchaSiteKey: process.env.RECAPTCHA_SITE_KEY || '',
     registrationsOpen: REGISTRATION_OPEN,
-    githubAuthEnabled: Boolean(GITHUB_CLIENT_ID && GITHUB_CLIENT_SECRET)
+    githubAuthEnabled: githubConfigured()
   };
   res.type('application/javascript').send(`window.__APP_CONFIG__=${JSON.stringify(payload)};`);
 });
@@ -281,22 +380,33 @@ app.use(express.static(__dirname, { extensions: ['html'] }));
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
 
 // --- GitHub OAuth ---
-const githubConfigured = () => Boolean(GITHUB_CLIENT_ID && GITHUB_CLIENT_SECRET);
+const githubConfigured = () => Boolean(GITHUB_CLIENT_ID && GITHUB_CLIENT_SECRET && GITHUB_TOKEN_SECRET);
 
 app.get('/api/auth/github/start', (req, res) => {
   if (!githubConfigured()) {
     return res.status(501).json({ ok: false, error: 'github_not_configured' });
   }
 
-  const state = crypto.randomBytes(16).toString('hex');
   const returnTo = sanitizeReturnTo(req.query.returnTo || '/register.html');
-  githubStates.set(state, { createdAt: Date.now(), returnTo });
+  let stateToken;
+  try {
+    stateToken = createSignedGithubToken({
+      type: 'state',
+      nonce: crypto.randomBytes(16).toString('hex'),
+      returnTo,
+      iat: Date.now(),
+      exp: Date.now() + GITHUB_STATE_TTL_MS
+    });
+  } catch (err) {
+    console.error('Failed to create GitHub state token', err);
+    return res.status(500).json({ ok: false, error: 'github_state_failed' });
+  }
 
   const params = new URLSearchParams({
     client_id: GITHUB_CLIENT_ID,
     redirect_uri: resolveGithubRedirectUri(req),
     scope: 'read:user user:email',
-    state
+    state: stateToken
   });
 
   res.redirect(`https://github.com/login/oauth/authorize?${params.toString()}`);
@@ -323,11 +433,11 @@ app.get('/api/auth/github/callback', async (req, res) => {
   }
 
   const { code = '', state = '' } = req.query || {};
-  const stateRecord = githubStates.get(state);
-  if (!state || !stateRecord) {
+  const statePayload = verifySignedGithubToken(typeof state === 'string' ? state : '');
+  if (!statePayload || statePayload.type !== 'state' || !statePayload.returnTo) {
     return res.status(400).send('Invalid or expired state. Please try again.');
   }
-  githubStates.delete(state);
+  const returnTo = sanitizeReturnTo(statePayload.returnTo || '/register.html');
 
   const params = new URLSearchParams({
     client_id: GITHUB_CLIENT_ID,
@@ -402,10 +512,22 @@ app.get('/api/auth/github/callback', async (req, res) => {
       console.error('Failed to check existing GitHub registration', lookupErr);
     }
 
-    const profileToken = crypto.randomBytes(24).toString('hex');
-    githubProfiles.set(profileToken, { createdAt: Date.now(), profile: profileData, alreadyRegistered });
+    const issuedAt = Date.now();
+    let profileToken;
+    try {
+      profileToken = createSignedGithubToken({
+        type: 'profile',
+        profile: profileData,
+        alreadyRegistered,
+        iat: issuedAt,
+        exp: issuedAt + GITHUB_PROFILE_TTL_MS
+      });
+    } catch (err) {
+      console.error('Failed to create GitHub profile token', err);
+      return res.status(500).send('Could not create GitHub session. Please try again.');
+    }
 
-    const target = sanitizeReturnTo(stateRecord.returnTo || '/register.html');
+    const target = returnTo;
     const separator = target.includes('?') ? '&' : '?';
     res.redirect(`${target}${separator}github_token=${profileToken}`);
   } catch (err) {
@@ -419,14 +541,31 @@ app.get('/api/auth/github/profile/:token', (req, res) => {
     return res.status(404).json({ ok: false, error: 'github_not_available' });
   }
   const token = req.params.token?.trim();
-  if (!token || !githubProfiles.has(token)) {
+  const profileRecord = verifySignedGithubToken(token || '');
+  if (!profileRecord || profileRecord.type !== 'profile' || !profileRecord.profile) {
     return res.status(404).json({ ok: false, error: 'profile_not_found' });
   }
-  const record = githubProfiles.get(token);
-  githubProfiles.delete(token);
-  const sessionToken = crypto.randomBytes(24).toString('hex');
-  githubSessions.set(sessionToken, { createdAt: Date.now(), profile: record.profile, alreadyRegistered: record.alreadyRegistered });
-  res.json({ ok: true, profile: record.profile, sessionToken, alreadyRegistered: Boolean(record.alreadyRegistered) });
+  const issuedAt = Date.now();
+  let sessionToken;
+  try {
+    sessionToken = createSignedGithubToken({
+      type: 'session',
+      profile: profileRecord.profile,
+      alreadyRegistered: Boolean(profileRecord.alreadyRegistered),
+      iat: issuedAt,
+      exp: issuedAt + GITHUB_PROFILE_TTL_MS
+    });
+  } catch (err) {
+    console.error('Failed to issue GitHub session token', err);
+    return res.status(500).json({ ok: false, error: 'session_creation_failed' });
+  }
+
+  res.json({
+    ok: true,
+    profile: profileRecord.profile,
+    sessionToken,
+    alreadyRegistered: Boolean(profileRecord.alreadyRegistered)
+  });
 });
 
 // register
@@ -442,12 +581,11 @@ app.post('/api/register', async (req, res) => {
   if (!githubSessionToken) {
     return res.status(400).json({ ok: false, error: 'github_required' });
   }
-  const githubSession = githubSessions.get(githubSessionToken);
-  if (!githubSession || (Date.now() - githubSession.createdAt > GITHUB_PROFILE_TTL_MS)) {
-    githubSessions.delete(githubSessionToken);
+  const githubSession = verifySignedGithubToken(githubSessionToken);
+  if (!githubSession || githubSession.type !== 'session' || !githubSession.profile) {
+
     return res.status(400).json({ ok: false, error: 'github_required' });
   }
-  githubSessions.delete(githubSessionToken);
   const githubProfile = githubSession.profile || {};
   const githubLogin = (githubProfile.login || '').trim();
   const githubProfileUrl = (githubProfile.profileUrl || '').trim();
@@ -696,5 +834,14 @@ app.get('/api/admin/registrations', adminAuth, async (_req, res) => {
 app.get('/admin', (_req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 app.get('/register', (_req, res) => res.sendFile(path.join(__dirname, 'register.html')));
 app.use((_req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+
+const PORT = Number(process.env.PORT || 3000);
+
+if (import.meta.url === `file://${__filename}`) {
+  app.listen(PORT, () => {
+    const base = SITE_URL || `http://localhost:${PORT}`;
+    console.log(`Bug Bash server ready on port ${PORT} → ${base}`);
+  });
+}
 
 export default app;

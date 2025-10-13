@@ -4,8 +4,20 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <link rel="icon" type="image/png" href="assets/bugbash_logo.png"/>
-<title>Bug Bash 2025 NST×SVYASA Bengaluru</title>
-<meta name="description" content="Bug Bash 2025 — 24 hour hackathon at SVYASA Bengaluru. Build. Code. Win.">
+<title>Bug Bash 2025 - NST×SVYASA Bengaluru Hackathon</title>
+<meta name="description" content="Bug Bash 2025 is a 24-hour student hackathon hosted by NST×SVYASA Bengaluru with tracks spanning aviation, AI, fintech, health, sustainability, and immersive media.">
+<meta name="keywords" content="Bug Bash 2025, NST SVYASA hackathon, Bengaluru student hackathon, 24 hour hackathon India">
+<link rel="canonical" href="https://bugbash.me/"/>
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="Bug Bash 2025"/>
+<meta property="og:title" content="Bug Bash 2025 - NST×SVYASA Bengaluru Hackathon"/>
+<meta property="og:description" content="Join Bug Bash 2025: a 24-hour NST×SVYASA student hackathon with tracks spanning aviation, AI, fintech, health, sustainability, and immersive media."/>
+<meta property="og:url" content="https://bugbash.me/"/>
+<meta property="og:image" content="https://bugbash.me/assets/bugbash_logo.png"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="Bug Bash 2025 NST×SVYASA Bengaluru Hackathon"/>
+<meta name="twitter:description" content="Join Bug Bash 2025 to build across aviation, AI, fintech, health, sustainability, and immersive media in a 24-hour sprint."/>
+<meta name="twitter:image" content="https://bugbash.me/assets/bugbash_logo.png"/>
 <style>
   :root{--bg1:#0f1720;--bg2:#0b1020;--accent:#7be04a;--glass:rgba(255,255,255,0.06);
     --muted:#97a0ad;--glass2:rgba(255,255,255,0.03);--white:#f7f8fa;--shadow:0 12px 30px rgba(2,6,23,0.6);
@@ -45,7 +57,7 @@
   @media(max-width:920px){.hero{grid-template-columns:1fr}}
   [data-animate]{opacity:0;transform:translateY(28px);transition:opacity .7s ease,transform .7s ease;will-change:opacity,transform}
   [data-animate].is-visible{opacity:1;transform:translateY(0)}
-  .panel{position:relative;background:linear-gradient(180deg,var(--glass),transparent);padding:28px;border-radius:14px;box-shadow:var(--shadow);backdrop-filter:blur(6px);overflow:hidden;display:flex;flex-direction:column;height:100%}
+  .panel{position:relative;background:linear-gradient(180deg,var(--glass),transparent);padding:28px;border-radius:14px;box-shadow:var(--shadow);backdrop-filter:blur(6px);overflow:hidden;display:flex;flex-direction:column;gap:12px}
   .panel::after{content:'';position:absolute;inset:-30%;background:radial-gradient(circle at center,rgba(123,224,74,0.12) 0,rgba(123,224,74,0) 60%);opacity:0;animation:panel-glow 6s ease-in-out infinite;pointer-events:none}
   .title{font-size:44px;line-height:1.05;margin:0 0 8px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
   .lead{color:var(--muted);font-size:16px;margin:0 0 18px}
@@ -61,10 +73,49 @@
   .cards .card:nth-child(2){transition-delay:.12s}
   .cards .card:nth-child(3){transition-delay:.18s}
   .cards .card:hover{transform:translateY(-6px);box-shadow:0 18px 40px rgba(2,6,23,0.36)}
+  .cards.cards--xl{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:22px}
+  @media(max-width:1040px){.cards.cards--xl{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:760px){.cards.cards--xl{grid-template-columns:1fr}}
+  .card.card--feature{padding:22px;background:linear-gradient(165deg,rgba(10,30,42,0.78),rgba(6,14,26,0.6));border:1px solid rgba(123,224,74,0.12);box-shadow:0 20px 38px rgba(3,10,20,0.45)}
+  .card.card--feature h4{margin:0;font-size:18px;letter-spacing:.08em;text-transform:uppercase}
+  .card.card--feature .card-list li{line-height:1.6}
   .muted{color:var(--muted);font-size:14px}
   .card-list{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-direction:column;gap:6px;color:var(--muted);font-size:14px}
   .card-list li{position:relative;padding-left:16px}
   .card-list li::before{content:'•';position:absolute;left:0;color:var(--accent);font-size:16px;line-height:1}
+  .register-cta .muted{line-height:1.6}
+  .register-cta .register-list{gap:10px}
+  .story{margin-top:36px}
+  .story h2{margin:0;font-size:30px;letter-spacing:.06em;text-transform:uppercase}
+  .story__grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+  @media(max-width:880px){.story__grid{grid-template-columns:1fr}}
+  .story p{margin:0;color:var(--muted);line-height:1.65;font-size:15px}
+  .story ul{margin:0;padding-left:20px;color:var(--muted);line-height:1.6;font-size:14px;display:grid;gap:6px;list-style:disc}
+  .faq{margin-top:36px}
+  .faq h2{margin:0;font-size:28px;letter-spacing:.06em;text-transform:uppercase}
+  .faq__grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+  @media(max-width:880px){.faq__grid{grid-template-columns:1fr}}
+  .faq-item{background:linear-gradient(160deg,rgba(10,20,28,0.75),rgba(6,12,24,0.55));border-radius:14px;padding:20px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 16px 34px rgba(3,10,18,0.42)}
+  .faq-item h3{margin:0 0 10px;font-size:17px;letter-spacing:.04em}
+  .faq-item p{margin:0;color:var(--muted);line-height:1.6;font-size:14px}
+  .stat-panel{margin-top:36px}
+  .stat-panel__header{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;align-items:flex-end}
+  .stat-panel__title{margin:0;font-size:28px;letter-spacing:.08em;text-transform:uppercase}
+  .stat-panel__meta{margin:0;color:var(--muted);font-size:14px;max-width:480px}
+  .stat-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+  @media(max-width:1024px){.stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:680px){.stat-grid{grid-template-columns:1fr}}
+  .stat-card{position:relative;border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:20px;background:linear-gradient(160deg,rgba(10,18,30,0.78),rgba(6,11,22,0.55));box-shadow:0 15px 30px rgba(3,10,18,0.4);display:flex;flex-direction:column;gap:10px}
+  .stat-card--accent{border-color:rgba(123,224,74,0.4);box-shadow:0 18px 40px rgba(123,224,74,0.18)}
+  .stat-card__label{margin:0;font-size:12px;letter-spacing:.26em;text-transform:uppercase;color:rgba(151,160,173,0.8)}
+  .stat-card__value{margin:0;font-size:42px;font-weight:800;letter-spacing:.04em;display:flex;align-items:baseline;gap:8px}
+  .stat-card__value small{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+  .stat-card__note{margin:0;color:var(--muted);line-height:1.55;font-size:14px}
+  .stat-card--wide{grid-column:span 2}
+  @media(max-width:680px){.stat-card--wide{grid-column:auto}}
+  .stat-divider{margin:18px 0 0;text-align:center;font-size:12px;text-transform:uppercase;letter-spacing:.38em;color:rgba(151,160,173,0.8)}
+  .stat-ticker{margin-top:14px;display:flex;gap:16px;flex-wrap:wrap;justify-content:center;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:rgba(151,160,173,0.88)}
+  .stat-ticker span{padding:6px 12px;border:1px solid rgba(255,255,255,0.08);border-radius:999px;background:rgba(9,18,28,0.55)}
   .schedule{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
   @media(max-width:720px){.schedule{grid-template-columns:1fr}}
   .sponsors{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:16px}
@@ -179,34 +230,37 @@
         <span class="glitch glitch--break" data-text="BREAK">BREAK</span>
         <span class="glitch glitch--build" data-text="BUILD">BUILD</span>
       </h1>
-      <p class="lead">Individual sign-up. Teams will be randomized 3–5 members each at kickoff.</p>
+      <p class="lead">Bug Bash 2025 is Bengaluru’s overnight student hackathon where aviation, AI, hardware, fintech, health, and immersive media builders sprint side by side. Sign up solo and we’ll slot you into a squad of 3–5 so every team ships something real by dawn.</p>
 
-      <div class="cards">
-        <div class="card" data-animate>
-          <h4>Tracks</h4>
+      <div class="cards cards--xl">
+        <div class="card card--feature" data-animate>
+          <h4>Tracks unlocked</h4>
           <ul class="card-list">
-            <li>AI & Agents for student life</li>
-            <li>Health & Wellness tech</li>
-            <li>FinTech & digital inclusion</li>
-            <li>Sustainability & smart campuses</li>
+            <li>Aviation ops, UAV telemetry, and ground coordination</li>
+            <li>AI copilots, automation, and agent-driven experiences</li>
+            <li>Fintech rails, compliance tooling, and civic inclusion</li>
+            <li>Health, wellness, and assistive diagnostics</li>
+            <li>Sustainability + campus infrastructure intelligence</li>
+            <li>Immersive media, spatial computing, and experience tech</li>
           </ul>
         </div>
-        <div class="card" data-animate>
-          <h4>Prizes</h4>
+        <div class="card card--feature" data-animate>
+          <h4>What we provide</h4>
           <ul class="card-list">
-            <li>Certificates</li>
-            <li>Partner internship interviews</li>
-            <li>Cloud & API credits for finalists</li>
-            <li>Swag kits and trophies</li>
+            <li>Help desks all night long - bring your own gear and tap mentors when you’re blocked</li>
+            <li>NST × SVYASA faculty, alumni, and guest engineers rotating across tracks</li>
+            <li>Starter briefs, API access, and resource packs curated for each track</li>
+            <li>Tables, power, Wi‑Fi, and testing space for robotics, IoT, or software squads</li>
+            <li>Showcase stage with feedback from partners, founders, and campus community</li>
           </ul>
         </div>
-        <div class="card" data-animate>
-          <h4>Schedule</h4>
+        <div class="card card--feature" data-animate>
+          <h4>Run of show</h4>
           <ul class="card-list">
-            <li>Day1 7:00 PM - Check-in & kickoff</li>
-            <li>Day1 1:00 PM - Hacking begins</li>
-            <li>Day2 10:00 AM - Mentorship & demos</li>
-            <li>Day2 1:00 PM - Pitches & awards</li>
+            <li>Day 0 evening: badge pickup, kickoff, and track briefings</li>
+            <li>Night sprint: squads lock a mission and cycle through mentor tables</li>
+            <li>Day 1 dawn: stand-ups, test runs, and coaching for pitch craft</li>
+            <li>Finale: demos, partner feedback, prizes, and follow-on support</li>
           </ul>
         </div>
       </div>
@@ -214,11 +268,11 @@
 
     <aside id="register" class="panel register-cta" data-animate>
       <h2 style="margin-top:0">Registrations now open</h2>
-      <p class="muted">Tell us about your idea, who you are, and the tools you plan to use. We’ll handle team formation and follow up by email.</p>
+      <p class="muted">Tell us how you want to build. Share your stack, your track pick, and we’ll match you with a hybrid squad, line up mentor windows, and send the full event brief.</p>
       <ul class="muted register-list">
         <li>Open to participants aged 16–22 with a valid student or recent graduate ID</li>
-        <li>Confirmation email within 24 hours with check-in details</li>
-        <li>Bring your laptop, essentials, and loads of curiosity</li>
+        <li>Confirmation email within 24 hours covering logistics, mentor checkpoints, and schedule</li>
+        <li>Bring your laptop, dev kits, and project essentials - we keep tables, power, and support ready</li>
       </ul>
       <div class="cta-row" style="margin-top:18px">
         <a class="btn" href="/register">Go to registration page</a>
@@ -226,6 +280,87 @@
       <div class="note" style="margin-top:12px">Questions? <a href="mailto:contact@bugbash.me" style="color:var(--accent)">contact@bugbash.me</a></div>
     </aside>
   </main>
+
+  <section class="panel story" data-animate>
+    <h2>Why launch Bug Bash now?</h2>
+    <div class="story__grid">
+      <div>
+        <p>Bug Bash 2025 is our first NST × SVYASA hackathon. We wanted a space where students can bring their own gear - laptops, dev boards, notebooks - and still have mentors on standby to help them ship a working demo in 24 hours.</p>
+        <p>No fluff: you pick the track, set the mission with your squad, and build your version of “next level.” Stay open to feedback, iterate fast, and let the mentors keep you moving.</p>
+      </div>
+      <div>
+        <ul>
+          <li>Tracks span aviation, AI, fintech, health tech, sustainability, and immersive media.</li>
+          <li>Engineers, founders, researchers, and storytellers rotate through office hours all night.</li>
+          <li>Checkpoints keep teams accountable while leaving plenty of room for experimentation.</li>
+        </ul>
+        <p style="margin-top:12px">It’s Bug Bash’s first chapter and we want you in the founding crew. <a href="/register" style="color:var(--accent)">Apply for Bug Bash 2025</a> and help shape the playbook.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel faq" data-animate>
+    <h2>Hackathon FAQs</h2>
+    <div class="faq__grid">
+      <article class="faq-item">
+        <h3>What makes Bug Bash different from other hackathons?</h3>
+        <p>Bug Bash debuts with tracks that let you hack across domains while keeping things honest - no staged setups, just fast prototyping, open mentor feedback, and a push to leave with something demoable.</p>
+      </article>
+      <article class="faq-item">
+        <h3>Do I need to bring hardware?</h3>
+        <p>Bring whatever your idea needs. We provide power, Wi‑Fi, whiteboards, and mentor access. If you have hardware components, carry them - our help desks make sure you can plug in and test safely.</p>
+      </article>
+      <article class="faq-item">
+        <h3>Who can join?</h3>
+        <p>Students and recent grads aged 16–22 from any discipline can join. Whether it’s your first hackathon or your tenth, we’ll pair you with teammates whose skills complement yours.</p>
+      </article>
+      <article class="faq-item">
+        <h3>What support will my team get?</h3>
+        <p>Mentors from multiple industries, partner APIs, design reviews, and storytelling sessions. You focus on the build - our crew keeps the momentum and feedback loops flowing.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="panel stat-panel" data-animate>
+    <div class="stat-panel__header">
+      <h2 class="stat-panel__title">Hackathon Preview Board</h2>
+      <p class="stat-panel__meta">A sneak peek at what we’re planning for Bug Bash’s first edition - capacity targets, mentor strength, and the campus coordinates.</p>
+    </div>
+    <div class="stat-grid">
+      <article class="stat-card stat-card--accent stat-card--wide">
+        <p class="stat-card__label">Origins</p>
+        <p class="stat-card__value">2025 <small>first edition</small></p>
+        <p class="stat-card__note">Bug Bash kicks off this year. We’ve scaled lessons from community maker nights into a national student gathering.</p>
+      </article>
+      <article class="stat-card">
+        <p class="stat-card__label">Longest build</p>
+        <p class="stat-card__value">24<span>h</span> <small>non-stop</small></p>
+        <p class="stat-card__note">From kickoff to demos, you’ll cycle through checkpoints, mentor pit-stops, and test runs to keep the work sharp.</p>
+      </article>
+      <article class="stat-card">
+        <p class="stat-card__label">Team slots</p>
+        <p class="stat-card__value">48 <small>squads</small></p>
+        <p class="stat-card__note">Expect a mix of coders, designers, product thinkers, and hardware builders - matched to balance every crew.</p>
+      </article>
+      <article class="stat-card">
+        <p class="stat-card__label">Mentor bench</p>
+        <p class="stat-card__value">28 <small>experts</small></p>
+        <p class="stat-card__note">Engineers, founders, researchers, and alumni mentors rotate across tracks with office hours and on-demand support.</p>
+      </article>
+      <article class="stat-card stat-card--wide">
+        <p class="stat-card__label">Hackathon HQ</p>
+        <p class="stat-card__value">12.73°N <small>77.5°E</small></p>
+        <p class="stat-card__note">NST × SVYASA campus, Bengaluru. Expect open labs, night-long energy, and a sunrise showcase.</p>
+      </article>
+    </div>
+    <div class="stat-divider">stay curious</div>
+    <div class="stat-ticker">
+      <span>Green grid energy</span>
+      <span>Zero-sleep sprints</span>
+      <span>Mentor office hours</span>
+      <span>Breakfast demos</span>
+    </div>
+  </section>
 
   <section id="sponsors" style="margin-top:48px" class="panel" data-animate>
     <h3 style="margin:0 0 12px">Sponsors & Partners</h3>
@@ -247,7 +382,7 @@
 </div>
 
 <a class="floating-bug" href="/register" title="Register now">
-  <img src="/assets/bugbash_logo.png" alt="Register" onerror="this.src='/assets/bugbash_logo.png?bust=1'">
+  <img src="/assets/bugbash_logo.png" alt="Bug Bash logo" onerror="this.src='/assets/bugbash_logo.png?bust=1'">
 </a>
 
 <script>
