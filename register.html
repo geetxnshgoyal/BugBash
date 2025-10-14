@@ -102,7 +102,14 @@
   .form-divider::before,.form-divider::after{content:'';position:absolute;top:50%;width:32%;height:1px;background:rgba(255,255,255,0.12)}
   .form-divider::before{left:0}
   .form-divider::after{right:0}
-  footer{text-align:center;color:var(--muted);font-size:13px;margin-top:48px;padding:12px}
+  footer{text-align:center;color:var(--muted);font-size:13px;margin-top:48px;padding:16px;display:flex;flex-direction:column;gap:14px;align-items:center;background:rgba(255,255,255,0.02);border-radius:12px}
+  footer p{margin:0}
+  .social-links{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+  .social-links a{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;background:rgba(123,224,74,0.12);color:var(--white);text-decoration:none;transition:transform .2s ease,background .2s ease}
+  .social-links a:hover{transform:translateY(-2px);background:rgba(123,224,74,0.28)}
+  .social-links svg{width:18px;height:18px;fill:currentColor}
+  .social-links span{font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.02em}
+  .social-links a:hover span{color:var(--white)}
   .floating-bug{position:fixed;bottom:28px;right:28px;width:60px;height:60px;display:flex;
     align-items:center;justify-content:center;background:linear-gradient(180deg,var(--glass),transparent);
     border:1px solid rgba(255,255,255,0.12);border-radius:50%;box-shadow:var(--shadow);
@@ -208,7 +215,22 @@
     </section>
   </main>
   <footer data-animate>
-    © Bug Bash 2025 • SVYASA Deemed to be University, Bengaluru • <a href="mailto:contact@bugbash.me">contact@bugbash.me</a>
+    <p>© Bug Bash 2025 • SVYASA Deemed to be University, Bengaluru • <a href="mailto:contact@bugbash.me">contact@bugbash.me</a></p>
+    <div class="social-links">
+      <a href="https://www.linkedin.com/company/bugbashme/" aria-label="Bug Bash on LinkedIn" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+          <path d="M4.98 3.5a2.5 2.5 0 1 1-.02 5 2.5 2.5 0 0 1 .02-5zM3 8.71h3.95V20H3zM9.5 8.71h3.77v1.54h.05c.52-.98 1.8-2.01 3.7-2.01 3.96 0 4.7 2.6 4.7 6V20h-3.94v-5.59c0-1.33-.02-3.05-1.86-3.05-1.86 0-2.15 1.45-2.15 2.95V20H9.5z"/>
+        </svg>
+        <span>LinkedIn /bugbashme</span>
+      </a>
+      <a href="https://instagram.com/bugbashme" aria-label="Bug Bash on Instagram" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+          <path d="M12 7.3a4.7 4.7 0 1 0 0 9.4 4.7 4.7 0 0 0 0-9.4zm0 7.7a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm6-7.8a1.1 1.1 0 1 1-2.2 0 1.1 1.1 0 0 1 2.2 0z"/>
+          <path d="M20.7 6.5a4.5 4.5 0 0 0-1.2-3 4.5 4.5 0 0 0-3-1.2C15 2.1 9 2.1 7.5 2.3a4.5 4.5 0 0 0-3 1.2 4.5 4.5 0 0 0-1.2 3C3.1 8 3.1 14 3.3 15.5a4.5 4.5 0 0 0 1.2 3 4.5 4.5 0 0 0 3 1.2c1.5.2 7.5.2 9 0a4.5 4.5 0 0 0 3-1.2 4.5 4.5 0 0 0 1.2-3c.2-1.5.2-7.5 0-9zm-1.9 9.6a2.6 2.6 0 0 1-1.5 1.5c-1 .4-3.3.3-4.4.3s-3.4.1-4.4-.3a2.6 2.6 0 0 1-1.5-1.5c-.4-1-.3-3.3-.3-4.4s-.1-3.4.3-4.4a2.6 2.6 0 0 1 1.5-1.5c1-.4 3.3-.3 4.4-.3s3.4-.1 4.4.3a2.6 2.6 0 0 1 1.5 1.5c.4 1 .3 3.3.3 4.4s.1 3.4-.3 4.4z"/>
+        </svg>
+        <span>Instagram @bugbashme</span>
+      </a>
+    </div>
   </footer>
 </div>
 <div class="modal" id="successModal" hidden>
