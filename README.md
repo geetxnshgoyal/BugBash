@@ -9,6 +9,8 @@ Node/Express app that serves the Bug Bash marketing pages and exposes the APIs p
 - Optional Google reCAPTCHA v3 enforcement to limit automated submissions.
 - Nodemailer integration for confirmation emails triggered after successful registration.
 - Admin APIs protected by a static admin token and short-lived in-memory sessions.
+- Organizer-only team dashboard (`/team`) for assigning tasks, logging progress, and tracking upcoming events.
+- Task claiming workflow so organizers can self-assign work with department-specific highlights.
 
 ## Prerequisites
 - Node.js 18+ and npm
@@ -55,6 +57,14 @@ The admin page is served from http://localhost:3000/admin. Sign in with the `ADM
 | `GOOGLE_SITE_VERIFICATION` / `GOOGLE_SITE_VERIFICATION_HTML` | Surface Google Search Console verification tags. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `EMAIL_FROM` | Enable confirmation emails via nodemailer. |
 | `PORT` | HTTP port when running locally (default 3000). |
+| `TEAM_DASHBOARD_ENABLED` | Toggle the `/team` dashboard (`true` by default; set to `false` to disable). |
+| `TEAM_SESSION_TTL_MS` | Milliseconds before organizer dashboard sessions expire (default 4h). |
+| `TEAM_LOGIN_CODES` | JSON map of email → access code (optional override for the built-in demo codes). |
+| `FIREBASE_TEAM_DEPARTMENTS_COLLECTION` | Firestore collection name for team departments (`team_departments` by default). |
+| `FIREBASE_TEAM_MEMBERS_COLLECTION` | Firestore collection for organizer accounts (`team_members` by default). |
+| `FIREBASE_TEAM_TASKS_COLLECTION` | Firestore collection for task documents (`team_tasks` by default). |
+| `FIREBASE_TEAM_TASK_UPDATES_COLLECTION` | Firestore collection for task updates (`team_task_updates` by default). |
+| `FIREBASE_TEAM_EVENTS_COLLECTION` | Firestore collection for team events (`team_events` by default). |
 
 ## API Overview
 | Method | Path | Auth | Description |
@@ -66,10 +76,24 @@ The admin page is served from http://localhost:3000/admin. Sign in with the `ADM
 | `POST` | `/api/admin/logout` | Session token | Clears in-memory admin session. |
 | `GET` | `/api/admin/registrations` | Session token / admin header | Returns JSON list of registrations ordered by creation time. |
 | `GET` | `/api/registrations.csv` | Session token / admin header | Streams all registrations as CSV for spreadsheet workflows. |
+| `POST` | `/api/team/login` | Name/login + access code | Starts an organizer session and returns profile context. |
+| `POST` | `/api/team/logout` | Team session | Invalidates the current organizer session. |
+| `GET` | `/api/team/me` | Team session | Returns member profile, department summary, and dashboard stats. |
+| `GET` | `/api/team/tasks` | Team session | Lists tasks with optional filters (`status`, `mine`, `owner`, `department`). |
+| `POST` | `/api/team/tasks` | Team session (lead) | Creates a new task within the selected department. |
+| `PATCH` | `/api/team/tasks/:id` | Team session (lead/owner) | Updates task status, owners, due date, or checklist. |
+| `POST` | `/api/team/tasks/:id/updates` | Team session (owner/lead) | Appends a progress note and optional status change. |
+| `GET` | `/api/team/tasks/:id/updates` | Team session | Fetches the chronological update log for a task. |
+| `POST` | `/api/team/tasks/:id/claim` | Team session (owner/lead) | Self-assign or release a task; leads can override existing assignees. |
+| `GET` | `/api/team/events` | Team session | Lists upcoming events/meetings with host info. |
+| `POST` | `/api/team/events` | Team session (lead) | Creates a new event or timeline entry. |
+| `GET` | `/api/team/departments` | Team session | Returns department metadata for filters and ownership. |
 
 All admin endpoints accept either:
 - `Authorization: Bearer <sessionToken>` returned by `/api/admin/login`, or
 - `X-Admin-Token: <ADMIN_TOKEN>` (suitable for scripts or CLI usage).
+
+Team dashboard endpoints expect `Authorization: Bearer <teamSession>` returned by `/api/team/login` (or `X-Team-Token` when scripting).
 
 ## Available Scripts
 - `npm run dev` – start the Express server with development defaults.
@@ -86,15 +110,32 @@ Registrations are written to the Firestore collection defined by `FIREBASE_REGIS
 
 Use the provided CSV endpoint when you need a spreadsheet-friendly export. Each row mirrors the fields returned by `mapRegistration` in `server.js`.
 
+## Team Dashboard Data
+- Organizer-facing routes now read/write Firestore collections. Create the following documents before going live:
+  - `team_departments`: `{ name, description, lead_member_ids: string[], channels: { slack, whatsapp? } }`
+  - `team_members`: `{ display_name, login_id, access_code, role, department_id, active?, identifiers?: string[] }`
+  - `team_tasks`: `{ title, description, department_id, owner_ids: string[], status, priority, due_at }` (fields like `last_update_*` and `updates_count` are maintained automatically).
+  - `team_task_updates`: `{ task_id, member_id, note, status_after, created_at }`.
+  - `team_events`: `{ title, description, start_at, end_at, location, link, hosts: string[], department_ids: string[] }`.
+- Store `login_id`/`display_name`/any aliases in lowercase inside the `identifiers` array so organizers can sign in with their name (e.g. `identifiers: ["anant"]`).
+- Sessions for organizers are tracked in-memory with a four-hour TTL (`TEAM_SESSION_TTL_MS`). Increase the value or switch to persistent storage if you need long-lived access.
+- Each task keeps `owner_ids` and works with the `/api/team/tasks/:id/claim` endpoint for self-assignment; the API updates the task document with `updates_count` and the latest note so cards can show progress without extra queries.
+- For quick seeding, you can adapt the sample objects in `team-data.js` into batch writes for the collections above.
+- Firestore will prompt for composite indexes the first time you hit the `/api/team/tasks/:id/updates` query (`task_id` + `created_at_ts`). Approve the suggested index in the Firebase console so update history loads instantly.
+- To seed a fresh environment with the sample data under `team-data.js`, run `npm run seed:team` after configuring your service account; this script writes the departments/members/tasks/updates/events into the configured collections.
+
 ## Email Customization
 The confirmation email template lives inline in `server.js`. Update the plain-text and HTML bodies together to keep content in sync. The `EMAIL_FROM` environment variable controls the sender header. If SMTP credentials are absent, the registration flow still succeeds but no email is sent.
 
 ## Project Layout
 - `index.html` – landing page served from the Express static middleware.
 - `register.html` – registration form that calls `/api/register`.
+- `team.html` – organizer dashboard UI for tasks, updates, and events.
 - `server.js` – Express app with API routes, Firestore integration, and GitHub/SMTP helpers.
 - `assets/` – shared static assets (logos, images).
 - `api/index.js` – Vercel edge handler that proxies to the main server when deployed serverlessly.
+- `team-data.js` – optional seed sample you can adapt for populating Firestore collections during testing.
+- `docs/team-dashboard.md` – product spec outlining long-term dashboard goals and API expectations.
 
 ## Deployment Notes
 - The app reads configuration exclusively from environment variables, making it suitable for platforms like Vercel, Render, or any Node-friendly host.

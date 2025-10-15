@@ -47,6 +47,103 @@ const SMTP_USER = process.env.SMTP_USERNAME?.trim();
 const SMTP_PASS = process.env.SMTP_PASSWORD;
 const EMAIL_FROM = process.env.EMAIL_FROM?.trim() || 'Bug Bash <updates@bugbash.me>';
 
+const TEAM_DASHBOARD_ENABLED = process.env.TEAM_DASHBOARD_ENABLED !== 'false';
+const TEAM_SESSION_TTL_MS = Number(process.env.TEAM_SESSION_TTL_MS || 1000 * 60 * 60 * 4);
+const TEAM_ALLOWED_STATUSES = new Set(['todo', 'in_progress', 'blocked', 'done']);
+
+const teamSessions = new Map();
+const teamLoginOverrides = new Map();
+const rawTeamLoginCodes = process.env.TEAM_LOGIN_CODES?.trim();
+if (rawTeamLoginCodes) {
+  try {
+    const parsedOverrides = JSON.parse(rawTeamLoginCodes);
+    if (parsedOverrides && typeof parsedOverrides === 'object') {
+      for (const [emailKey, value] of Object.entries(parsedOverrides)) {
+        if (!emailKey || typeof emailKey !== 'string') continue;
+        const normalizedEmail = emailKey.trim().toLowerCase();
+        if (!normalizedEmail) continue;
+        if (typeof value === 'string' && value.trim()) {
+          teamLoginOverrides.set(normalizedEmail, { code: value.trim() });
+        } else if (value && typeof value === 'object') {
+          const overrideCode =
+            typeof value.code === 'string' && value.code.trim() ? value.code.trim() : '';
+          if (overrideCode) {
+            teamLoginOverrides.set(normalizedEmail, {
+              code: overrideCode,
+              memberId:
+                typeof value.memberId === 'string' && value.memberId.trim()
+                  ? value.memberId.trim()
+                  : undefined,
+              member:
+                value.member && typeof value.member === 'object'
+                  ? {
+                      id:
+                        typeof value.member.id === 'string' && value.member.id.trim()
+                          ? value.member.id.trim()
+                          : undefined,
+                      displayName:
+                        typeof value.member.displayName === 'string'
+                          ? value.member.displayName.trim()
+                          : undefined,
+                      role:
+                        typeof value.member.role === 'string'
+                          ? value.member.role.trim()
+                          : undefined,
+                      departmentId:
+                        typeof value.member.departmentId === 'string'
+                          ? value.member.departmentId.trim()
+                          : undefined
+                    }
+                  : undefined
+            });
+          }
+        }
+      }
+    }
+  } catch (teamLoginErr) {
+    console.error('Failed to parse TEAM_LOGIN_CODES. Expected JSON object.', teamLoginErr);
+  }
+}
+
+const teamMembersById = new Map();
+const teamMemberIdentifiers = new Map();
+const normalizeKey = (value) =>
+  typeof value === 'string' && value.trim() ? value.trim().toLowerCase() : '';
+const registerMemberAlias = (alias, member) => {
+  const key = normalizeKey(alias);
+  if (key && !teamMemberIdentifiers.has(key)) {
+    teamMemberIdentifiers.set(key, member);
+  }
+};
+
+const toIsoString = (value) => {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (value instanceof Date) {
+    try {
+      return value.toISOString();
+    } catch {
+      return '';
+    }
+  }
+  if (value.toDate) {
+    try {
+      return value.toDate().toISOString();
+    } catch {
+      return '';
+    }
+  }
+  if (typeof value === 'number') {
+    try {
+      return new Date(value).toISOString();
+    } catch {
+      return '';
+    }
+  }
+  return '';
+};
+
+
 let mailTransporter = null;
 if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
   try {
@@ -186,6 +283,220 @@ const safeCompare = (a, b) => {
   return crypto.timingSafeEqual(aBuffer, bBuffer);
 };
 
+const createTeamSession = (memberId) => {
+  const token = crypto.randomBytes(32).toString('hex');
+  teamSessions.set(token, { memberId, createdAt: Date.now() });
+  return token;
+};
+
+const touchTeamSession = (token) => {
+  const record = teamSessions.get(token);
+  if (!record) return null;
+  if (Date.now() - record.createdAt > TEAM_SESSION_TTL_MS) {
+    teamSessions.delete(token);
+    return null;
+  }
+  const nextRecord = { ...record, createdAt: Date.now() };
+  teamSessions.set(token, nextRecord);
+  return nextRecord.memberId;
+};
+
+const cleanupTeamSessions = () => {
+  const now = Date.now();
+  for (const [token, record] of teamSessions.entries()) {
+    if (now - record.createdAt > TEAM_SESSION_TTL_MS) {
+      teamSessions.delete(token);
+    }
+  }
+};
+
+if (Number.isFinite(TEAM_SESSION_TTL_MS) && TEAM_SESSION_TTL_MS > 0) {
+  setInterval(cleanupTeamSessions, TEAM_SESSION_TTL_MS).unref?.();
+}
+
+const ensureMembersLoaded = async () => {
+  if (!teamMembersById.size) {
+    await fetchTeamMembers();
+  }
+};
+
+const resolveLoginMember = async (identifierNormalized) => {
+  await ensureMembersLoaded();
+  const override = teamLoginOverrides.get(identifierNormalized);
+  let member = teamMemberIdentifiers.get(identifierNormalized);
+  if (!member && override?.memberId) {
+    member = await fetchTeamMemberById(override.memberId);
+  }
+  if (!member && override?.member) {
+    const generatedId =
+      override.member.id ||
+      `override-${Buffer.from(identifierNormalized).toString('hex').slice(0, 12)}`;
+    member = {
+      id: generatedId,
+      displayName: override.member.displayName || identifierNormalized,
+      role: override.member.role || 'volunteer',
+      departmentId: override.member.departmentId || '',
+      email: `${identifierNormalized}`,
+      loginId: override.member.loginId || identifierNormalized,
+      loginIdNormalized: identifierNormalized,
+      identifiers: [identifierNormalized]
+    };
+    teamMembersById.set(member.id, member);
+    registerMemberAlias(identifierNormalized, member);
+  }
+  if (!member) {
+    member = await fetchTeamMemberById(identifierNormalized);
+    if (member) {
+      registerMemberAlias(identifierNormalized, member);
+    }
+  }
+  return { member, override };
+};
+
+const resolveTeamAccessCode = ({ member, override, identifierNormalized }) => {
+  const overrideCode = override?.code;
+  if (overrideCode) {
+    return overrideCode;
+  }
+  if (member?.accessCode) {
+    return member.accessCode;
+  }
+  if (member && override && !overrideCode) {
+    return '';
+  }
+  const fallback = teamLoginOverrides.get(identifierNormalized);
+  return fallback?.code || '';
+};
+
+const sanitizeTeamMember = (member) => {
+  if (!member || typeof member !== 'object') return null;
+  return {
+    id: member.id,
+    displayName: member.displayName || '',
+    email: member.email || '',
+    role: member.role || '',
+    loginId: member.loginId || '',
+    departmentId: member.departmentId || ''
+  };
+};
+
+const sanitizeTeamDepartment = (department) => {
+  if (!department || typeof department !== 'object') return null;
+  return {
+    id: department.id,
+    name: department.name || '',
+    description: department.description || '',
+    leadMemberIds: Array.isArray(department.leadMemberIds) ? department.leadMemberIds : [],
+    channels: department.channels && typeof department.channels === 'object' ? department.channels : {}
+  };
+};
+
+const getTaskUpdates = (taskId) =>
+  teamTaskUpdates
+    .filter((update) => update.taskId === taskId)
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+const sanitizeTeamTask = (
+  task,
+  { departmentMap, memberMap, departmentColors, currentMemberId, currentMemberRole }
+) => {
+  if (!task || typeof task !== 'object') return null;
+  const department = departmentMap.get(task.departmentId);
+  const owners = Array.isArray(task.ownerIds) ? task.ownerIds : [];
+  const ownerSummaries = owners.map((ownerId) => {
+    const member = memberMap.get(ownerId);
+    return (
+      sanitizeTeamMember(
+        member || { id: ownerId, displayName: ownerId, role: '', departmentId: task.departmentId }
+      ) || { id: ownerId, displayName: ownerId }
+    );
+  });
+  const departmentColor = departmentColors.get(task.departmentId) || '#7be04a';
+  const isMine = Boolean(currentMemberId && owners.includes(currentMemberId));
+  const isLead = currentMemberRole === 'lead';
+  const hasOwners = owners.length > 0;
+  const canClaim = Boolean(currentMemberId && !isMine && (!hasOwners || isLead));
+  const canUnclaim = Boolean(currentMemberId && (isMine || isLead));
+  const lastUpdateMember =
+    task.lastUpdate?.memberId && memberMap.has(task.lastUpdate.memberId)
+      ? sanitizeTeamMember(memberMap.get(task.lastUpdate.memberId))
+      : null;
+  return {
+    id: task.id,
+    title: task.title || '',
+    description: task.description || '',
+    departmentId: task.departmentId || '',
+    departmentName: department?.name || '',
+    departmentColor,
+    ownerIds: owners,
+    owners: ownerSummaries,
+    status: task.status || 'todo',
+    priority: task.priority || 'medium',
+    dueAt: task.dueAt || '',
+    createdBy: task.createdBy || '',
+    createdAt: task.createdAt || '',
+    checklist: Array.isArray(task.checklist) ? task.checklist : [],
+    updatesCount: typeof task.updatesCount === 'number' ? task.updatesCount : 0,
+    lastUpdateAt: task.lastUpdate?.createdAt || task.createdAt || '',
+    lastUpdate: task.lastUpdate
+      ? {
+          id: task.lastUpdate.id || '',
+          memberId: task.lastUpdate.memberId || '',
+          note: task.lastUpdate.note || '',
+          statusAfter: task.lastUpdate.statusAfter || '',
+          createdAt: task.lastUpdate.createdAt || '',
+          member: lastUpdateMember
+        }
+      : null,
+    isMine,
+    canClaim,
+    canUnclaim,
+    hasOwners
+  };
+};
+
+const sanitizeTeamTaskUpdate = (update, memberMap) => {
+  if (!update || typeof update !== 'object') return null;
+  const member = memberMap?.get(update.memberId);
+  return {
+    id: update.id,
+    taskId: update.taskId,
+    memberId: update.memberId,
+    note: update.note || '',
+    statusAfter: update.statusAfter || '',
+    createdAt: update.createdAt || '',
+    member:
+      sanitizeTeamMember(member) ||
+      {
+        id: update.memberId,
+        displayName: update.memberId || '',
+        email: '',
+        role: '',
+        departmentId: ''
+      }
+  };
+};
+
+const sanitizeTeamEvent = (event, memberMap) => {
+  if (!event || typeof event !== 'object') return null;
+  const hosts = Array.isArray(event.hosts) ? event.hosts : [];
+  const hostMembers = hosts
+    .map((hostId) => sanitizeTeamMember(memberMap.get(hostId)))
+    .filter(Boolean);
+  return {
+    id: event.id,
+    title: event.title || '',
+    description: event.description || '',
+    startAt: event.startAt || '',
+    endAt: event.endAt || '',
+    location: event.location || '',
+    link: event.link || '',
+    hosts,
+    hostMembers,
+    departmentIds: Array.isArray(event.departmentIds) ? event.departmentIds : []
+  };
+};
+
 const createSignedGithubToken = (payload) => {
   if (!GITHUB_TOKEN_SECRET) {
     throw new Error('GitHub token secret not configured. Set GITHUB_TOKEN_SECRET or SESSION_SECRET.');
@@ -285,6 +596,203 @@ try {
 
 const FieldValue = admin.firestore.FieldValue;
 const registrationsCollection = firestore.collection(process.env.FIREBASE_REGISTRATIONS_COLLECTION || 'registrations');
+
+const TEAM_DEPARTMENTS_COLLECTION =
+  process.env.FIREBASE_TEAM_DEPARTMENTS_COLLECTION || 'team_departments';
+const TEAM_MEMBERS_COLLECTION =
+  process.env.FIREBASE_TEAM_MEMBERS_COLLECTION || 'team_members';
+const TEAM_TASKS_COLLECTION =
+  process.env.FIREBASE_TEAM_TASKS_COLLECTION || 'team_tasks';
+const TEAM_TASK_UPDATES_COLLECTION =
+  process.env.FIREBASE_TEAM_TASK_UPDATES_COLLECTION || 'team_task_updates';
+const TEAM_EVENTS_COLLECTION =
+  process.env.FIREBASE_TEAM_EVENTS_COLLECTION || 'team_events';
+
+const teamDepartmentsCollection = firestore.collection(TEAM_DEPARTMENTS_COLLECTION);
+const teamMembersCollection = firestore.collection(TEAM_MEMBERS_COLLECTION);
+const teamTasksCollection = firestore.collection(TEAM_TASKS_COLLECTION);
+const teamTaskUpdatesCollection = firestore.collection(TEAM_TASK_UPDATES_COLLECTION);
+const teamEventsCollection = firestore.collection(TEAM_EVENTS_COLLECTION);
+
+const DEPARTMENT_COLOR_PALETTE = [
+  '#7be04a',
+  '#38bdf8',
+  '#f97316',
+  '#f472b6',
+  '#a855f7',
+  '#22c55e',
+  '#facc15',
+  '#fb7185',
+  '#2dd4bf',
+  '#c084fc'
+];
+
+const buildDepartmentColorMap = (departments) => {
+  const map = new Map();
+  departments.forEach((dept, index) => {
+    map.set(dept.id, DEPARTMENT_COLOR_PALETTE[index % DEPARTMENT_COLOR_PALETTE.length]);
+  });
+  return map;
+};
+
+const mapTeamDepartmentDoc = (doc) => {
+  const data = doc.data() || {};
+  return {
+    id: doc.id,
+    name: data.name || data.display_name || '',
+    description: data.description || '',
+    leadMemberIds: Array.isArray(data.lead_member_ids) ? data.lead_member_ids : [],
+    channels: data.channels && typeof data.channels === 'object' ? data.channels : {}
+  };
+};
+
+const mapTeamMemberDoc = (doc) => {
+  const data = doc.data() || {};
+  const loginId = data.login_id || data.login || doc.id;
+  const displayName = data.display_name || data.name || loginId || doc.id;
+  const explicitIdentifiers = Array.isArray(data.identifiers) ? data.identifiers : [];
+  const identifierSet = new Set(
+    [
+      loginId,
+      data.login_id_lower,
+      displayName,
+      data.display_name_lower,
+      data.email,
+      ...explicitIdentifiers
+    ]
+      .map(normalizeKey)
+      .filter(Boolean)
+  );
+  const identifiers = Array.from(identifierSet);
+  const normalizedLoginId = normalizeKey(loginId);
+  const member = {
+    id: doc.id,
+    displayName,
+    loginId,
+    loginIdNormalized: normalizedLoginId,
+    displayNameNormalized: normalizeKey(displayName),
+    accessCode: data.access_code || '',
+    role: data.role || '',
+    departmentId: data.department_id || '',
+    email: data.email || '',
+    active: data.active !== false,
+    identifiers,
+    raw: data
+  };
+  registerMemberAlias(loginId, member);
+  registerMemberAlias(displayName, member);
+  registerMemberAlias(data.email, member);
+  identifiers.forEach((alias) => registerMemberAlias(alias, member));
+  teamMembersById.set(member.id, member);
+  return member;
+};
+
+const mapTeamTaskDoc = (doc) => {
+  const data = doc.data() || {};
+  return {
+    id: doc.id,
+    title: data.title || '',
+    description: data.description || '',
+    departmentId: data.department_id || '',
+    ownerIds: Array.isArray(data.owner_ids) ? data.owner_ids : [],
+    status: data.status || 'todo',
+    priority: data.priority || 'medium',
+    dueAt: toIsoString(data.due_at || data.due_at_ts),
+    createdBy: data.created_by || '',
+    createdAt: toIsoString(data.created_at || data.created_at_ts),
+    checklist: Array.isArray(data.checklist) ? data.checklist : [],
+    updatesCount: typeof data.updates_count === 'number' ? data.updates_count : 0,
+    lastUpdate: data.last_update_id
+      ? {
+          id: data.last_update_id,
+          memberId: data.last_update_member_id || '',
+          note: data.last_update_note || '',
+          statusAfter: data.last_update_status || '',
+          createdAt: toIsoString(data.last_update_at),
+          createdAtTs: data.last_update_at_ts
+        }
+      : null
+  };
+};
+
+const mapTeamTaskUpdateDoc = (doc) => {
+  const data = doc.data() || {};
+  return {
+    id: doc.id,
+    taskId: data.task_id || '',
+    memberId: data.member_id || '',
+    note: data.note || '',
+    statusAfter: data.status_after || '',
+    createdAt: toIsoString(data.created_at || data.created_at_ts),
+    createdAtTs: data.created_at_ts
+  };
+};
+
+const mapTeamEventDoc = (doc) => {
+  const data = doc.data() || {};
+  return {
+    id: doc.id,
+    title: data.title || '',
+    description: data.description || '',
+    startAt: toIsoString(data.start_at || data.start_at_ts),
+    endAt: toIsoString(data.end_at || data.end_at_ts),
+    location: data.location || '',
+    link: data.link || '',
+    hosts: Array.isArray(data.hosts) ? data.hosts : [],
+    departmentIds: Array.isArray(data.department_ids) ? data.department_ids : [],
+    createdAt: toIsoString(data.created_at || data.created_at_ts)
+  };
+};
+
+const fetchTeamDepartments = async () => {
+  const snapshot = await teamDepartmentsCollection.get();
+  return snapshot.docs.map(mapTeamDepartmentDoc);
+};
+
+const resetTeamMemberCaches = () => {
+  teamMembersById.clear();
+  teamMemberIdentifiers.clear();
+};
+
+const fetchTeamMembers = async () => {
+  resetTeamMemberCaches();
+  const snapshot = await teamMembersCollection.get();
+  return snapshot.docs.map(mapTeamMemberDoc).filter((member) => member.active);
+};
+
+const fetchTeamMembersMap = async () => {
+  const members = await fetchTeamMembers();
+  const map = new Map(members.map((member) => [member.id, member]));
+  return { members, map };
+};
+
+const fetchTeamMemberById = async (id) => {
+  if (!id) return null;
+  if (teamMembersById.has(id)) return teamMembersById.get(id);
+  const doc = await teamMembersCollection.doc(id).get();
+  if (!doc.exists) return null;
+  return mapTeamMemberDoc(doc);
+};
+
+const fetchTeamTasks = async () => {
+  const snapshot = await teamTasksCollection.get();
+  return snapshot.docs.map(mapTeamTaskDoc);
+};
+
+const fetchTaskUpdates = async (taskId) => {
+  const snapshot = await teamTaskUpdatesCollection.where('task_id', '==', taskId).get();
+  return snapshot.docs
+    .map(mapTeamTaskUpdateDoc)
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+    );
+};
+
+const fetchTeamEvents = async () => {
+  const snapshot = await teamEventsCollection.get();
+  return snapshot.docs.map(mapTeamEventDoc);
+};
 
 const mapRegistration = (doc) => {
   const data = doc.data() || {};
@@ -739,6 +1247,682 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
+// --- Team Dashboard API ---
+const getTeamTokenFromRequest = (req) => {
+  const authHeader = req.headers['authorization'];
+  if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+    return authHeader.slice(7).trim();
+  }
+  const headerToken = req.headers['x-team-token'];
+  return typeof headerToken === 'string' ? headerToken.trim() : '';
+};
+
+const ensureTeamEnabled = (res) => {
+  if (!TEAM_DASHBOARD_ENABLED) {
+    res.status(503).json({ ok: false, error: 'team_dashboard_disabled' });
+    return false;
+  }
+  return true;
+};
+
+const teamAuth = async (req, res, next) => {
+  if (!ensureTeamEnabled(res)) return;
+  const token = getTeamTokenFromRequest(req);
+  if (!token) {
+    return res.status(401).json({ ok: false, error: 'unauthorized' });
+  }
+  const memberId = touchTeamSession(token);
+  if (!memberId) {
+    return res.status(401).json({ ok: false, error: 'invalid_session' });
+  }
+  let member = teamMembersById.get(memberId);
+  if (!member) {
+    try {
+      member = await fetchTeamMemberById(memberId);
+    } catch (err) {
+      console.error('Failed to load member during auth', err);
+    }
+    if (!member) {
+      teamSessions.delete(token);
+      return res.status(401).json({ ok: false, error: 'invalid_session' });
+    }
+  }
+  req.teamMember = member;
+  req.teamSessionToken = token;
+  next();
+};
+
+app.post('/api/team/login', async (req, res) => {
+  if (!ensureTeamEnabled(res)) return;
+  const { email = '', code = '' } = req.body || {};
+  const normalizedIdentifier = normalizeKey(email);
+  const providedCode = typeof code === 'string' ? code.trim() : '';
+  if (!normalizedIdentifier || !providedCode) {
+    return res.status(400).json({ ok: false, error: 'missing_credentials' });
+  }
+  const { member, override } = await resolveLoginMember(normalizedIdentifier);
+  if (!member) {
+    return res.status(404).json({ ok: false, error: 'member_not_found' });
+  }
+  const expectedCode = resolveTeamAccessCode({ member, override, identifierNormalized: normalizedIdentifier });
+  if (!expectedCode) {
+    return res.status(403).json({ ok: false, error: 'access_not_configured' });
+  }
+  if (!safeCompare(expectedCode, providedCode)) {
+    return res.status(401).json({ ok: false, error: 'invalid_credentials' });
+  }
+  const sessionToken = createTeamSession(member.id);
+  try {
+    const [departments, tasks] = await Promise.all([fetchTeamDepartments(), fetchTeamTasks()]);
+    const departmentMap = new Map(departments.map((dept) => [dept.id, dept]));
+    const department = sanitizeTeamDepartment(departmentMap.get(member.departmentId));
+    const myOpenTasks = tasks.filter(
+      (task) => Array.isArray(task.ownerIds) && task.ownerIds.includes(member.id) && task.status !== 'done'
+    ).length;
+    res.json({
+      ok: true,
+      token: sessionToken,
+      expires_in: TEAM_SESSION_TTL_MS,
+      member: sanitizeTeamMember(member),
+      department,
+      stats: {
+        myOpenTasks
+      }
+    });
+  } catch (err) {
+    console.error('Failed to load team context during login', err);
+    res.json({
+      ok: true,
+      token: sessionToken,
+      expires_in: TEAM_SESSION_TTL_MS,
+      member: sanitizeTeamMember(member),
+      department: null,
+      stats: {
+        myOpenTasks: 0
+      }
+    });
+  }
+});
+
+app.post('/api/team/logout', teamAuth, (req, res) => {
+  const token = req.teamSessionToken;
+  if (token) {
+    teamSessions.delete(token);
+  }
+  res.json({ ok: true });
+});
+
+app.get('/api/team/me', teamAuth, async (req, res) => {
+  try {
+    const [departments, { members, map: memberMap }, tasks, events] = await Promise.all([
+      fetchTeamDepartments(),
+      fetchTeamMembersMap(),
+      fetchTeamTasks(),
+      fetchTeamEvents()
+    ]);
+    const departmentMap = new Map(departments.map((dept) => [dept.id, dept]));
+    const member = await fetchTeamMemberById(req.teamMember.id);
+    const department = sanitizeTeamDepartment(departmentMap.get(member?.departmentId || req.teamMember.departmentId));
+    const myTasks = tasks.filter(
+      (task) => Array.isArray(task.ownerIds) && task.ownerIds.includes(req.teamMember.id)
+    );
+    const upcomingEvents = events.filter((event) => {
+      if (!event.startAt) return false;
+      const eventTime = new Date(event.startAt).getTime();
+      return Number.isFinite(eventTime) && eventTime >= Date.now() - 1000 * 60 * 60 * 24;
+    });
+    res.json({
+      ok: true,
+      member: sanitizeTeamMember(member || req.teamMember),
+      department,
+      departments: departments.map(sanitizeTeamDepartment).filter(Boolean),
+      stats: {
+        myOpenTasks: myTasks.filter((task) => task.status !== 'done').length,
+        myBlockedTasks: myTasks.filter((task) => task.status === 'blocked').length,
+        upcomingEvents: upcomingEvents.length
+      }
+    });
+  } catch (err) {
+    console.error('Failed to load team profile', err);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+app.get('/api/team/departments', teamAuth, async (_req, res) => {
+  try {
+    const departments = await fetchTeamDepartments();
+    res.json({ ok: true, departments: departments.map(sanitizeTeamDepartment).filter(Boolean) });
+  } catch (err) {
+    console.error('Failed to load team departments', err);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+app.get('/api/team/tasks', teamAuth, async (req, res) => {
+  try {
+    const { department, status, mine, owner } = req.query || {};
+    const [departments, { map: memberMap }, tasks] = await Promise.all([
+      fetchTeamDepartments(),
+      fetchTeamMembersMap(),
+      fetchTeamTasks()
+    ]);
+    const departmentMap = new Map(departments.map((dept) => [dept.id, dept]));
+    const departmentColors = buildDepartmentColorMap(departments);
+    let results = [...tasks];
+    if (department && typeof department === 'string') {
+      const departmentIds = department
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+      if (departmentIds.length) {
+        results = results.filter((task) => departmentIds.includes(task.departmentId));
+      }
+    }
+    if (status && typeof status === 'string' && status.trim() !== 'all') {
+      const normalizedStatus = status.trim().toLowerCase();
+      results = results.filter((task) => task.status === normalizedStatus);
+    }
+    if (owner && typeof owner === 'string') {
+      const normalizedOwner = owner.trim();
+      results = results.filter(
+        (task) => Array.isArray(task.ownerIds) && task.ownerIds.includes(normalizedOwner)
+      );
+    }
+    if (mine === 'true') {
+      results = results.filter(
+        (task) =>
+          Array.isArray(task.ownerIds) && task.ownerIds.includes(req.teamMember.id)
+      );
+    }
+    const context = {
+      departmentMap,
+      memberMap,
+      departmentColors,
+      currentMemberId: req.teamMember.id,
+      currentMemberRole: req.teamMember.role
+    };
+    const payload = results
+      .map((task) => sanitizeTeamTask(task, context))
+      .filter(Boolean);
+    res.json({ ok: true, tasks: payload });
+  } catch (err) {
+    console.error('Failed to load team tasks', err);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+app.get('/api/team/tasks/:id/updates', teamAuth, async (req, res) => {
+  const taskId = req.params.id?.trim();
+  if (!taskId) {
+    return res.status(400).json({ ok: false, error: 'missing_task_id' });
+  }
+  try {
+    const taskSnap = await teamTasksCollection.doc(taskId).get();
+    if (!taskSnap.exists) {
+      return res.status(404).json({ ok: false, error: 'task_not_found' });
+    }
+    const [updates, { map: memberMap }] = await Promise.all([
+      fetchTaskUpdates(taskId),
+      fetchTeamMembersMap()
+    ]);
+    res.json({
+      ok: true,
+      updates: updates.map((update) => sanitizeTeamTaskUpdate(update, memberMap)).filter(Boolean)
+    });
+  } catch (err) {
+    console.error('Failed to load task updates', err);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+app.post('/api/team/tasks/:id/updates', teamAuth, async (req, res) => {
+  const taskId = req.params.id?.trim();
+  if (!taskId) {
+    return res.status(400).json({ ok: false, error: 'missing_task_id' });
+  }
+  try {
+    const taskRef = teamTasksCollection.doc(taskId);
+    const [taskSnap, departments, { map: memberMap }] = await Promise.all([
+      taskRef.get(),
+      fetchTeamDepartments(),
+      fetchTeamMembersMap()
+    ]);
+    if (!taskSnap.exists) {
+      return res.status(404).json({ ok: false, error: 'task_not_found' });
+    }
+    const task = mapTeamTaskDoc(taskSnap);
+    const { note = '', status } = req.body || {};
+    const trimmedNote = typeof note === 'string' ? note.trim() : '';
+    if (!trimmedNote) {
+      return res.status(400).json({ ok: false, error: 'missing_note' });
+    }
+    const normalizedStatus =
+      typeof status === 'string' && status.trim() ? status.trim().toLowerCase() : '';
+    if (normalizedStatus && !TEAM_ALLOWED_STATUSES.has(normalizedStatus)) {
+      return res.status(400).json({ ok: false, error: 'invalid_status' });
+    }
+    const isOwner = Array.isArray(task.ownerIds) && task.ownerIds.includes(req.teamMember.id);
+    const isLead = req.teamMember.role === 'lead';
+    if (!isOwner && !isLead) {
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+    }
+    const createdAtIso = new Date().toISOString();
+    const updateRef = teamTaskUpdatesCollection.doc();
+    const statusAfter = normalizedStatus || task.status || 'todo';
+    await updateRef.set({
+      task_id: taskId,
+      member_id: req.teamMember.id,
+      note: trimmedNote,
+      status_after: statusAfter,
+      created_at: createdAtIso,
+      created_at_ts: FieldValue.serverTimestamp()
+    });
+    const taskUpdatePayload = {
+      last_update_id: updateRef.id,
+      last_update_member_id: req.teamMember.id,
+      last_update_note: trimmedNote,
+      last_update_status: statusAfter,
+      last_update_at: createdAtIso,
+      last_update_at_ts: FieldValue.serverTimestamp(),
+      updates_count: FieldValue.increment(1),
+      updated_at: FieldValue.serverTimestamp()
+    };
+    if (normalizedStatus && normalizedStatus !== task.status) {
+      taskUpdatePayload.status = normalizedStatus;
+    }
+    await taskRef.update(taskUpdatePayload);
+    const [updatedTaskSnap, updateSnap] = await Promise.all([taskRef.get(), updateRef.get()]);
+    const updatedTask = mapTeamTaskDoc(updatedTaskSnap);
+    const updateRecord = mapTeamTaskUpdateDoc(updateSnap);
+    const departmentMap = new Map(departments.map((dept) => [dept.id, dept]));
+    const departmentColors = buildDepartmentColorMap(departments);
+    const context = {
+      departmentMap,
+      memberMap,
+      departmentColors,
+      currentMemberId: req.teamMember.id,
+      currentMemberRole: req.teamMember.role
+    };
+    res.status(201).json({
+      ok: true,
+      update: sanitizeTeamTaskUpdate(updateRecord, memberMap),
+      task: sanitizeTeamTask(updatedTask, context)
+    });
+  } catch (err) {
+    console.error('Failed to append task update', err);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+app.post('/api/team/tasks', teamAuth, async (req, res) => {
+  const requester = req.teamMember;
+  if (requester.role !== 'lead') {
+    return res.status(403).json({ ok: false, error: 'forbidden' });
+  }
+  const { title = '', description = '', departmentId = '', ownerIds, dueAt, priority } =
+    req.body || {};
+  const trimmedTitle = typeof title === 'string' ? title.trim() : '';
+  const trimmedDescription = typeof description === 'string' ? description.trim() : '';
+  if (!trimmedTitle) {
+    return res.status(400).json({ ok: false, error: 'missing_title' });
+  }
+  try {
+    const [departments, { map: memberMap }] = await Promise.all([
+      fetchTeamDepartments(),
+      fetchTeamMembersMap()
+    ]);
+    const departmentMap = new Map(departments.map((dept) => [dept.id, dept]));
+    const department =
+      typeof departmentId === 'string' && departmentId.trim()
+        ? departmentMap.get(departmentId.trim())
+        : departmentMap.get(requester.departmentId);
+    if (!department) {
+      return res.status(400).json({ ok: false, error: 'invalid_department' });
+    }
+    let normalizedOwnerIds;
+    if (Array.isArray(ownerIds) && ownerIds.length) {
+      normalizedOwnerIds = ownerIds
+        .map((value) => (typeof value === 'string' ? value.trim() : ''))
+        .filter(Boolean);
+    } else {
+      normalizedOwnerIds = [requester.id];
+    }
+    const missingOwners = normalizedOwnerIds.filter((ownerId) => !memberMap.has(ownerId));
+    if (missingOwners.length) {
+      return res.status(400).json({ ok: false, error: 'invalid_owner' });
+    }
+    const nowIso = new Date().toISOString();
+    const dueAtIso = dueAt ? toIsoString(new Date(dueAt)) || '' : '';
+    const taskRef = teamTasksCollection.doc();
+    await taskRef.set({
+      title: trimmedTitle,
+      description: trimmedDescription,
+      department_id: department.id,
+      owner_ids: normalizedOwnerIds,
+      status: 'todo',
+      priority: typeof priority === 'string' && priority.trim() ? priority.trim() : 'medium',
+      due_at: dueAtIso,
+      due_at_ts: dueAtIso ? new Date(dueAtIso) : null,
+      created_by: requester.id,
+      created_at: nowIso,
+      created_at_ts: FieldValue.serverTimestamp(),
+      checklist: [],
+      updates_count: 0
+    });
+    const createdTaskSnap = await taskRef.get();
+    const createdTask = mapTeamTaskDoc(createdTaskSnap);
+    const departmentColors = buildDepartmentColorMap(departments);
+    const context = {
+      departmentMap,
+      memberMap,
+      departmentColors,
+      currentMemberId: requester.id,
+      currentMemberRole: requester.role
+    };
+    res.status(201).json({
+      ok: true,
+      task: sanitizeTeamTask(createdTask, context)
+    });
+  } catch (err) {
+    console.error('Failed to create team task', err);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+app.patch('/api/team/tasks/:id', teamAuth, async (req, res) => {
+  const taskId = req.params.id?.trim();
+  if (!taskId) {
+    return res.status(400).json({ ok: false, error: 'missing_task_id' });
+  }
+  try {
+    const taskRef = teamTasksCollection.doc(taskId);
+    const [taskSnap, departments, { map: memberMap }] = await Promise.all([
+      taskRef.get(),
+      fetchTeamDepartments(),
+      fetchTeamMembersMap()
+    ]);
+    if (!taskSnap.exists) {
+      return res.status(404).json({ ok: false, error: 'task_not_found' });
+    }
+    const task = mapTeamTaskDoc(taskSnap);
+    const requester = req.teamMember;
+    const isLead = requester.role === 'lead';
+    const isOwner = Array.isArray(task.ownerIds) && task.ownerIds.includes(requester.id);
+    const allowedFields = ['status'];
+    const bodyKeys = Object.keys(req.body || {});
+    if (!isLead) {
+      if (!isOwner || bodyKeys.some((key) => !allowedFields.includes(key))) {
+        return res.status(403).json({ ok: false, error: 'forbidden' });
+      }
+    }
+    const updates = {};
+    if (req.body?.status) {
+      const normalizedStatus =
+        typeof req.body.status === 'string' ? req.body.status.trim().toLowerCase() : '';
+      if (!TEAM_ALLOWED_STATUSES.has(normalizedStatus)) {
+        return res.status(400).json({ ok: false, error: 'invalid_status' });
+      }
+      updates.status = normalizedStatus;
+    }
+    if (isLead && Array.isArray(req.body?.ownerIds)) {
+      const normalizedOwnerIds = req.body.ownerIds
+        .map((value) => (typeof value === 'string' ? value.trim() : ''))
+        .filter(Boolean);
+      const missingOwners = normalizedOwnerIds.filter((ownerId) => !memberMap.has(ownerId));
+      if (missingOwners.length) {
+        return res.status(400).json({ ok: false, error: 'invalid_owner' });
+      }
+      updates.owner_ids = normalizedOwnerIds;
+    }
+    if (isLead && typeof req.body?.priority === 'string' && req.body.priority.trim()) {
+      updates.priority = req.body.priority.trim();
+    }
+    if (isLead && typeof req.body?.dueAt === 'string') {
+      const dueAtIso = req.body.dueAt.trim()
+        ? toIsoString(new Date(req.body.dueAt.trim())) || ''
+        : '';
+      updates.due_at = dueAtIso;
+      updates.due_at_ts = dueAtIso ? new Date(dueAtIso) : null;
+    }
+    if (isLead && Array.isArray(req.body?.checklist)) {
+      updates.checklist = req.body.checklist
+        .map((item) => (typeof item === 'string' ? item.trim() : ''))
+        .filter(Boolean);
+    }
+    if (!Object.keys(updates).length) {
+      const departmentMap = new Map(departments.map((dept) => [dept.id, dept]));
+      const departmentColors = buildDepartmentColorMap(departments);
+      const context = {
+        departmentMap,
+        memberMap,
+        departmentColors,
+        currentMemberId: requester.id,
+        currentMemberRole: requester.role
+      };
+      return res.json({
+        ok: true,
+        task: sanitizeTeamTask(task, context)
+      });
+    }
+    updates.updated_at = FieldValue.serverTimestamp();
+    await taskRef.update(updates);
+    const updatedTaskSnap = await taskRef.get();
+    const updatedTask = mapTeamTaskDoc(updatedTaskSnap);
+    const departmentMap = new Map(departments.map((dept) => [dept.id, dept]));
+    const departmentColors = buildDepartmentColorMap(departments);
+    const context = {
+      departmentMap,
+      memberMap,
+      departmentColors,
+      currentMemberId: requester.id,
+      currentMemberRole: requester.role
+    };
+    res.json({
+      ok: true,
+      task: sanitizeTeamTask(updatedTask, context)
+    });
+  } catch (err) {
+    console.error('Failed to update team task', err);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+app.post('/api/team/tasks/:id/claim', teamAuth, async (req, res) => {
+  const taskId = req.params.id?.trim();
+  if (!taskId) {
+    return res.status(400).json({ ok: false, error: 'missing_task_id' });
+  }
+  try {
+    const taskRef = teamTasksCollection.doc(taskId);
+    const [taskSnap, departments, { map: memberMap }] = await Promise.all([
+      taskRef.get(),
+      fetchTeamDepartments(),
+      fetchTeamMembersMap()
+    ]);
+    if (!taskSnap.exists) {
+      return res.status(404).json({ ok: false, error: 'task_not_found' });
+    }
+    const task = mapTeamTaskDoc(taskSnap);
+    const requester = req.teamMember;
+    const isLead = requester.role === 'lead';
+    const action =
+      typeof req.body?.action === 'string' ? req.body.action.trim().toLowerCase() : 'claim';
+    const requestedMemberIdRaw =
+      typeof req.body?.memberId === 'string' ? req.body.memberId.trim() : '';
+    const targetMemberId =
+      requestedMemberIdRaw && isLead ? requestedMemberIdRaw : requester.id;
+    if (!memberMap.has(targetMemberId)) {
+      return res.status(404).json({ ok: false, error: 'member_not_found' });
+    }
+
+    const owners = Array.isArray(task.ownerIds) ? [...task.ownerIds] : [];
+    const isTargetOwner = owners.includes(targetMemberId);
+
+    if (action === 'claim') {
+      if (isTargetOwner) {
+        const departmentMap = new Map(departments.map((dept) => [dept.id, dept]));
+        const departmentColors = buildDepartmentColorMap(departments);
+        const context = {
+          departmentMap,
+          memberMap,
+          departmentColors,
+          currentMemberId: requester.id,
+          currentMemberRole: requester.role
+        };
+        return res.json({ ok: true, task: sanitizeTeamTask(task, context) });
+      }
+      if (owners.length && !isLead) {
+        return res.status(409).json({ ok: false, error: 'already_claimed' });
+      }
+      owners.push(targetMemberId);
+    } else if (action === 'unclaim') {
+      if (!isTargetOwner) {
+        return res.status(404).json({ ok: false, error: 'not_assigned' });
+      }
+      if (targetMemberId !== requester.id && !isLead) {
+        return res.status(403).json({ ok: false, error: 'forbidden' });
+      }
+      const index = owners.indexOf(targetMemberId);
+      if (index >= 0) {
+        owners.splice(index, 1);
+      }
+    } else {
+      return res.status(400).json({ ok: false, error: 'unknown_action' });
+    }
+
+    await taskRef.update({
+      owner_ids: owners,
+      updated_at: FieldValue.serverTimestamp()
+    });
+    const updatedTaskSnap = await taskRef.get();
+    const updatedTask = mapTeamTaskDoc(updatedTaskSnap);
+    const departmentMap = new Map(departments.map((dept) => [dept.id, dept]));
+    const departmentColors = buildDepartmentColorMap(departments);
+    const context = {
+      departmentMap,
+      memberMap,
+      departmentColors,
+      currentMemberId: requester.id,
+      currentMemberRole: requester.role
+    };
+    res.json({
+      ok: true,
+      task: sanitizeTeamTask(updatedTask, context)
+    });
+  } catch (err) {
+    console.error('Failed to update task assignment', err);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+app.get('/api/team/events', teamAuth, async (req, res) => {
+  const { department, upcoming } = req.query || {};
+  try {
+    const [events, { map: memberMap }] = await Promise.all([
+      fetchTeamEvents(),
+      fetchTeamMembersMap()
+    ]);
+    let results = [...events];
+    if (department && typeof department === 'string') {
+      const trimmed = department.trim();
+      results = results.filter(
+        (event) =>
+          Array.isArray(event.departmentIds) && event.departmentIds.includes(trimmed)
+      );
+    }
+    if (upcoming !== 'false') {
+      const now = Date.now();
+      results = results.filter((event) => {
+        if (!event.startAt) return false;
+        const startTs = new Date(event.startAt).getTime();
+        return Number.isFinite(startTs) && startTs >= now - 1000 * 60 * 60 * 24;
+      });
+    }
+    results.sort((a, b) => new Date(a.startAt || 0) - new Date(b.startAt || 0));
+    res.json({
+      ok: true,
+      events: results.map((event) => sanitizeTeamEvent(event, memberMap)).filter(Boolean)
+    });
+  } catch (err) {
+    console.error('Failed to load team events', err);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+app.post('/api/team/events', teamAuth, async (req, res) => {
+  const requester = req.teamMember;
+  if (requester.role !== 'lead') {
+    return res.status(403).json({ ok: false, error: 'forbidden' });
+  }
+  const {
+    title = '',
+    description = '',
+    startAt = '',
+    endAt = '',
+    location = '',
+    link = '',
+    hosts,
+    departmentIds
+  } = req.body || {};
+  const trimmedTitle = typeof title === 'string' ? title.trim() : '';
+  if (!trimmedTitle) {
+    return res.status(400).json({ ok: false, error: 'missing_title' });
+  }
+  const normalizedStart = typeof startAt === 'string' ? startAt.trim() : '';
+  if (!normalizedStart) {
+    return res.status(400).json({ ok: false, error: 'missing_start' });
+  }
+  try {
+    const [departments, { map: memberMap }] = await Promise.all([
+      fetchTeamDepartments(),
+      fetchTeamMembersMap()
+    ]);
+    const departmentMap = new Map(departments.map((dept) => [dept.id, dept]));
+    const normalizedHosts = Array.isArray(hosts)
+      ? hosts.map((value) => (typeof value === 'string' ? value.trim() : '')).filter(Boolean)
+      : [requester.id];
+    const missingHosts = normalizedHosts.filter((hostId) => !memberMap.has(hostId));
+    if (missingHosts.length) {
+      return res.status(400).json({ ok: false, error: 'invalid_host' });
+    }
+    const normalizedDepartments = Array.isArray(departmentIds)
+      ? departmentIds.map((value) => (typeof value === 'string' ? value.trim() : '')).filter(Boolean)
+      : requester.departmentId
+      ? [requester.departmentId]
+      : [];
+    const invalidDepartments = normalizedDepartments.filter((deptId) => !departmentMap.has(deptId));
+    if (invalidDepartments.length) {
+      return res.status(400).json({ ok: false, error: 'invalid_department' });
+    }
+    const startIso = toIsoString(new Date(normalizedStart)) || normalizedStart;
+    const endIso = typeof endAt === 'string' && endAt.trim()
+      ? toIsoString(new Date(endAt.trim())) || endAt.trim()
+      : '';
+    const eventRef = teamEventsCollection.doc();
+    const nowIso = new Date().toISOString();
+    await eventRef.set({
+      title: trimmedTitle,
+      description: typeof description === 'string' ? description.trim() : '',
+      start_at: startIso,
+      start_at_ts: startIso ? new Date(startIso) : null,
+      end_at: endIso,
+      end_at_ts: endIso ? new Date(endIso) : null,
+      location: typeof location === 'string' ? location.trim() : '',
+      link: typeof link === 'string' ? link.trim() : '',
+      hosts: normalizedHosts,
+      department_ids: normalizedDepartments,
+      created_at: nowIso,
+      created_at_ts: FieldValue.serverTimestamp()
+    });
+    const eventSnap = await eventRef.get();
+    const event = mapTeamEventDoc(eventSnap);
+    res.status(201).json({ ok: true, event: sanitizeTeamEvent(event, memberMap) });
+  } catch (err) {
+    console.error('Failed to create team event', err);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
 // CSV
 app.get('/api/registrations.csv', adminAuth, async (_req, res) => {
   try {
@@ -833,6 +2017,7 @@ app.get('/api/admin/registrations', adminAuth, async (_req, res) => {
 // --- Admin page and index fallback ---
 app.get('/admin', (_req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 app.get('/register', (_req, res) => res.sendFile(path.join(__dirname, 'register.html')));
+app.get('/team', (_req, res) => res.sendFile(path.join(__dirname, 'team.html')));
 app.use((_req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
 const PORT = Number(process.env.PORT || 3000);
@@ -845,4 +2030,3 @@ if (import.meta.url === `file://${__filename}`) {
 }
 
 export default app;
-

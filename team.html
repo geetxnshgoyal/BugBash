@@ -1,0 +1,1222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Team Dashboard • Bug Bash</title>
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon.ico"/>
+<meta name="robots" content="noindex,nofollow"/>
+<style>
+  :root{
+    --bg1:#0f1720;--bg2:#0b1020;
+    --glass:rgba(255,255,255,0.06);--glass2:rgba(255,255,255,0.03);
+    --accent:#7be04a;--accent-soft:rgba(123,224,74,0.18);
+    --muted:#94a3b8;--danger:#f87171;--warning:#facc15;
+    --white:#f8fafc;--shadow:0 18px 44px rgba(2,8,23,0.6);
+    --font:'Segoe UI',Roboto,Helvetica,system-ui,sans-serif;
+    --badge-bg:rgba(148,163,184,0.16);--badge-color:#e2e8f0;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    min-height:100vh;
+    font-family:var(--font);
+    color:var(--white);
+    background:
+      radial-gradient(1200px 600px at 10% 10%,rgba(123,224,74,0.05),transparent),
+      linear-gradient(180deg,var(--bg1),var(--bg2));
+  }
+  a{color:var(--accent)}
+  .wrap{
+    max-width:1200px;
+    margin:0 auto;
+    padding:32px 20px 80px;
+  }
+  header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:18px;
+    margin-bottom:28px;
+  }
+  .brand{font-size:22px;font-weight:800;letter-spacing:.6px}
+  .brand span{color:var(--accent)}
+  .nav-actions{
+    display:flex;
+    gap:12px;
+    align-items:center;
+  }
+  .nav-actions a{
+    color:var(--muted);
+    text-decoration:none;
+    font-size:14px;
+  }
+  .panel{
+    background:linear-gradient(180deg,var(--glass),transparent);
+    border-radius:18px;
+    padding:28px;
+    box-shadow:var(--shadow);
+    backdrop-filter:blur(6px);
+    opacity:0;
+    transform:translateY(18px);
+    transition:opacity .5s ease,transform .5s ease;
+  }
+  .panel.is-visible{
+    opacity:1;
+    transform:translateY(0);
+  }
+  .dashboard[hidden], .meme-panel[hidden]{display:none !important;}
+  h1{margin:0 0 16px;font-size:28px}
+  h2{margin:0;font-size:22px}
+  .muted{color:var(--muted);margin:0 0 18px;font-size:15px}
+  label{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;font-size:14px;color:var(--muted)}
+  input,select,textarea{
+    padding:12px 14px;
+    border-radius:10px;
+    border:1px solid rgba(148,163,184,0.28);
+    background:var(--glass2);
+    color:var(--white);
+    font:inherit;
+  }
+  input:focus,select:focus,textarea:focus{
+    outline:2px solid var(--accent);
+    outline-offset:2px;
+  }
+  button{
+    border:none;
+    border-radius:999px;
+    padding:12px 20px;
+    font:inherit;
+    font-weight:600;
+    cursor:pointer;
+    background:var(--accent);
+    color:#041007;
+    transition:transform .15s ease,box-shadow .15s ease;
+  }
+  button:hover{transform:translateY(-1px);box-shadow:0 8px 20px rgba(123,224,74,0.35)}
+  button:disabled{opacity:.6;cursor:not-allowed;box-shadow:none;transform:none}
+  .btn-ghost{
+    background:transparent;
+    color:var(--muted);
+    border:1px solid rgba(148,163,184,0.3);
+    padding:10px 18px;
+  }
+  .layout{
+    display:grid;
+    gap:24px;
+  }
+  .dashboard{
+    display:grid;
+    gap:24px;
+  }
+  .dashboard-header{
+    display:flex;
+    flex-wrap:wrap;
+    gap:20px;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .meme-panel{
+    margin:10px 0 24px;
+    padding:18px 22px;
+    border-radius:16px;
+    background:rgba(15,23,42,0.6);
+    border:1px solid rgba(148,163,184,0.22);
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    opacity:0;
+    transform:translateY(12px);
+    transition:opacity .28s ease,transform .28s ease;
+  }
+  .meme-panel.is-visible{opacity:1;transform:translateY(0);}
+  .meme-panel h3{
+    margin:0;
+    font-size:16px;
+    letter-spacing:.3px;
+    color:var(--accent);
+  }
+  .meme-panel p{
+    margin:0;
+    color:#cbd5f5;
+    font-size:14px;
+    line-height:1.5;
+  }
+  .meme-panel .meme-footer{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    font-size:12px;
+    color:var(--muted);
+  }
+  .member-card{
+    padding:18px 22px;
+    border-radius:16px;
+    background:var(--glass2);
+    border:1px solid rgba(148,163,184,0.18);
+    min-width:260px;
+  }
+  .member-card h3{margin:0 0 6px;font-size:18px}
+  .member-meta{margin:0;font-size:14px;color:var(--muted)}
+  .stats{
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+  }
+  .stat-pill{
+    background:var(--glass2);
+    border-radius:14px;
+    padding:14px 18px;
+    border:1px solid rgba(148,163,184,0.18);
+    min-width:140px;
+  }
+  .stat-pill strong{display:block;font-size:20px;color:var(--accent)}
+  .task-section,.event-section{
+    background:var(--glass2);
+    border-radius:18px;
+    border:1px solid rgba(148,163,184,0.18);
+    padding:24px;
+  }
+  .section-header{
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:18px;
+  }
+  .filters{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    align-items:center;
+  }
+  .filters label.inline{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    margin:0;
+    color:var(--muted);
+    font-size:13px;
+  }
+  .badge{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:var(--badge-bg);
+    color:var(--badge-color);
+    padding:4px 10px;
+    border-radius:999px;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:.6px;
+  }
+  .badge.status-todo{background:rgba(148,163,184,0.18);color:#f1f5f9}
+  .badge.status-in_progress{background:rgba(59,130,246,0.18);color:#60a5fa}
+  .badge.status-blocked{background:rgba(248,113,113,0.18);color:#fca5a5}
+  .badge.status-done{background:rgba(94,234,212,0.18);color:#5eead4}
+  .task-list{
+    display:grid;
+    gap:16px;
+  }
+  .task-card{
+    position:relative;
+    border-radius:16px;
+    border:1px solid rgba(148,163,184,0.18);
+    background:linear-gradient(180deg,var(--glass),transparent);
+    padding:20px;
+    --task-accent: var(--accent);
+    border-left:6px solid var(--task-accent);
+    transition:box-shadow .18s ease,transform .18s ease,opacity .28s ease;
+    opacity:0;
+    transform:translateY(18px);
+  }
+  .task-card--show{opacity:1;transform:translateY(0);}
+  .task-card::after{
+    content:'';
+    position:absolute;
+    inset:0;
+    border-radius:16px;
+    pointer-events:none;
+    border:1px solid rgba(123,224,74,0);
+    transition:border .18s ease;
+  }
+  .task-card--mine{
+    box-shadow:0 0 0 1px var(--task-accent),0 18px 30px rgba(123,224,74,0.18);
+    transform:translateY(-1px);
+  }
+  .task-card--mine::after{
+    border-color:rgba(123,224,74,0.25);
+  }
+  .task-card--unassigned{
+    border-style:dashed;
+  }
+  .task-card h3{
+    margin:0 0 10px;
+    font-size:18px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+  }
+  .task-card p{margin:6px 0 12px;font-size:14px;color:var(--muted)}
+  .task-team-tag{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:12px;
+    padding:4px 10px;
+    border-radius:999px;
+    border:1px solid currentColor;
+    color:var(--task-accent);
+    background:rgba(255,255,255,0.04);
+    margin-bottom:10px;
+    text-transform:uppercase;
+    letter-spacing:.5px;
+  }
+  .task-meta{
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+    font-size:13px;
+    color:var(--muted);
+  }
+  .task-meta span strong{color:var(--white)}
+  .task-actions{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+    margin-top:14px;
+  }
+  .task-actions button{
+    padding:8px 16px;
+    font-size:13px;
+  }
+  .task-owners{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-top:6px;
+  }
+  .owner-chip{
+    background:rgba(148,163,184,0.16);
+    border-radius:999px;
+    padding:4px 10px;
+    font-size:12px;
+    color:#e2e8f0;
+  }
+  .badge.badge--warn{
+    background:rgba(250,204,21,0.16);
+    color:#fde68a;
+  }
+  .assignment-hint{
+    margin:10px 0 0;
+    font-size:13px;
+    color:#e2e8f0;
+  }
+  .task-last-update{
+    margin-top:12px;
+    font-size:13px;
+    color:var(--muted);
+  }
+  .task-last-update strong{
+    color:var(--white);
+  }
+  .task-actions button{
+    padding:8px 16px;
+    font-size:13px;
+  }
+  details.task-updates{
+    margin-top:14px;
+    border-top:1px solid rgba(148,163,184,0.16);
+    padding-top:12px;
+  }
+  details.task-updates summary{
+    cursor:pointer;
+    font-size:13px;
+    color:var(--muted);
+    display:flex;
+    align-items:center;
+    gap:6px;
+    transition:color .2s ease;
+  }
+  details.task-updates summary::before{
+    content:'▸';
+    font-size:12px;
+    transition:transform .2s ease;
+  }
+  details.task-updates[open] summary::before{transform:rotate(90deg);}
+  details.task-updates[open] summary{color:var(--accent);}
+  .updates-list{
+    margin-top:10px;
+    display:grid;
+    gap:10px;
+    opacity:0;
+    transform:translateY(-6px);
+    transition:opacity .25s ease,transform .25s ease;
+  }
+  details.task-updates[open] .updates-list{
+    opacity:1;
+    transform:translateY(0);
+  }
+  .update-pill{
+    background:rgba(15,23,42,0.55);
+    border-radius:12px;
+    padding:10px 12px;
+    border:1px solid rgba(148,163,184,0.14);
+    font-size:13px;
+  }
+  .update-pill strong{display:block;color:var(--white);margin-bottom:4px}
+  .events-list{
+    display:grid;
+    gap:14px;
+  }
+  .event-card{
+    border-radius:14px;
+    border:1px solid rgba(148,163,184,0.16);
+    background:rgba(15,23,42,0.55);
+    padding:16px 18px;
+    opacity:0;
+    transform:translateY(12px);
+    transition:opacity .28s ease,transform .28s ease;
+  }
+  .event-card--show{opacity:1;transform:translateY(0);}
+  .event-card h4{margin:0 0 6px;font-size:16px}
+  .event-card p{margin:4px 0;font-size:13px;color:var(--muted)}
+  .status-message{
+    margin-top:12px;
+    font-size:14px;
+    color:var(--muted);
+  }
+  .status-message.error{color:var(--danger)}
+  .status-message.success{color:var(--accent)}
+  @media(max-width:960px){
+    .dashboard{gap:18px}
+    .task-section,.event-section{padding:20px}
+  }
+  @media(min-width:900px){
+    .dashboard-main{
+      display:grid;
+      grid-template-columns:minmax(0,2fr) minmax(0,1fr);
+      gap:20px;
+      align-items:start;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">BUG BASH <span>Team</span></div>
+    <div class="nav-actions">
+      <a href="/">Home</a>
+      <a href="/register">Registration</a>
+      <a href="/admin">Admin</a>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panel" id="loginPanel">
+      <h1>Team Dashboard</h1>
+      <p class="muted">Private workspace for NST organizers. Sign in with your name and the latest access code.</p>
+      <form id="loginForm" autocomplete="off">
+        <label>Name
+          <input type="text" name="identifier" required placeholder="Enter your name" autocomplete="off">
+        </label>
+        <label>Access code
+          <input type="password" name="code" required placeholder="Access code">
+        </label>
+        <button type="submit" id="loginSubmit">Sign in</button>
+      </form>
+      <p id="loginMessage" class="status-message" hidden></p>
+    </section>
+
+    <section class="dashboard" id="dashboardPanel" hidden>
+      <div class="dashboard-header">
+        <div class="member-card" id="memberCard">
+          <h3 id="memberName"></h3>
+          <p class="member-meta" id="memberMeta"></p>
+        </div>
+        <div class="stats" id="statsRow"></div>
+        <div class="nav-actions">
+          <button class="btn-ghost" id="refreshBtn">Refresh</button>
+          <button class="btn-ghost" id="logoutBtn">Sign out</button>
+        </div>
+      </div>
+
+      <section class="meme-panel" id="memePanel" hidden>
+        <h3>🎉 Meme of the Sprint</h3>
+        <p id="memeText"></p>
+        <div class="meme-footer">
+          <span id="memeAttribution"></span>
+          <button class="btn-ghost" id="memeShuffle" type="button">New meme</button>
+        </div>
+      </section>
+
+      <p id="dashboardStatus" class="status-message" hidden></p>
+
+      <div class="dashboard-main">
+        <div class="task-section">
+          <div class="section-header">
+            <h2>Tasks</h2>
+            <div class="filters">
+              <select id="departmentFilter">
+                <option value="mine">My team</option>
+                <option value="all">All teams</option>
+              </select>
+              <select id="statusFilter">
+                <option value="all">All statuses</option>
+                <option value="todo">To do</option>
+                <option value="in_progress">In progress</option>
+                <option value="blocked">Blocked</option>
+                <option value="done">Completed</option>
+              </select>
+              <label class="inline">
+                <input type="checkbox" id="myTasksToggle">
+                Assigned to me
+              </label>
+              <button id="newTaskBtn" hidden>Create task</button>
+            </div>
+          </div>
+          <div class="task-list" id="taskList"></div>
+        </div>
+
+        <aside class="event-section">
+          <div class="section-header">
+            <h2>Upcoming</h2>
+          </div>
+          <div class="events-list" id="eventList"></div>
+        </aside>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+(() => {
+  const STORAGE_KEY = 'bugbash_team_token';
+  const state = {
+    token: null,
+    member: null,
+    department: null,
+    stats: {},
+    tasks: [],
+    events: [],
+    filters: {
+      showMine: false,
+      status: 'all',
+      department: 'mine'
+    },
+    people: new Map()
+  };
+  let lastMemeIndex = -1;
+
+  const els = {
+    loginPanel: document.getElementById('loginPanel'),
+    dashboardPanel: document.getElementById('dashboardPanel'),
+    loginForm: document.getElementById('loginForm'),
+    loginSubmit: document.getElementById('loginSubmit'),
+    loginMessage: document.getElementById('loginMessage'),
+    memberName: document.getElementById('memberName'),
+    memberMeta: document.getElementById('memberMeta'),
+    statsRow: document.getElementById('statsRow'),
+    dashboardStatus: document.getElementById('dashboardStatus'),
+    taskList: document.getElementById('taskList'),
+    eventList: document.getElementById('eventList'),
+    logoutBtn: document.getElementById('logoutBtn'),
+    refreshBtn: document.getElementById('refreshBtn'),
+    departmentFilter: document.getElementById('departmentFilter'),
+    myTasksToggle: document.getElementById('myTasksToggle'),
+    statusFilter: document.getElementById('statusFilter'),
+    newTaskBtn: document.getElementById('newTaskBtn'),
+    memePanel: document.getElementById('memePanel'),
+    memeText: document.getElementById('memeText'),
+    memeAttribution: document.getElementById('memeAttribution'),
+    memeShuffle: document.getElementById('memeShuffle')
+  };
+
+  if (els.statusFilter) {
+    els.statusFilter.value = state.filters.status;
+  }
+  if (els.myTasksToggle) {
+    els.myTasksToggle.checked = state.filters.showMine;
+  }
+
+  const indexPerson = (person) => {
+    if (!person || typeof person !== 'object' || !person.id) return;
+    state.people.set(person.id, {
+      id: person.id,
+      displayName: person.displayName || person.name || '',
+      email: person.email || '',
+      role: person.role || '',
+      loginId: person.loginId || '',
+      departmentId: person.departmentId || ''
+    });
+  };
+
+  const lookupPerson = (id) => {
+    if (!id) return null;
+    return state.people.get(id) || null;
+  };
+
+  const escapeHTML = (value = '') =>
+    String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+
+  const MEMES = [
+    {
+      text: 'Deploying on Fridays? That’s a plot twist, not a roadmap.',
+      author: 'Bug Bash Ops'
+    },
+    {
+      text: 'Remember: coffee is just hot bug triage fuel ☕️',
+      author: 'Hackathon Pantry Team'
+    },
+    {
+      text: 'QA said “LGTM”, which obviously stands for “Let’s Get The Memes.”',
+      author: 'Sprint Standup'
+    },
+    {
+      text: 'If at first you don’t succeed, clear cache, drink chai, try again.',
+      author: 'The Dev Shrine'
+    },
+    {
+      text: 'Our CI pipeline now includes 30% more memes to catch flaky spirits.',
+      author: 'Automation Squad'
+    }
+  ];
+
+  const pickRandomMeme = () => {
+    let index = Math.floor(Math.random() * MEMES.length);
+    if (index === lastMemeIndex && MEMES.length > 1) {
+      index = (index + 1) % MEMES.length;
+    }
+    lastMemeIndex = index;
+    return MEMES[index];
+  };
+
+  const renderMeme = () => {
+    if (!els.memePanel || !els.memeText || !els.memeAttribution) return;
+    const meme = pickRandomMeme();
+    els.memeText.textContent = meme.text;
+    els.memeAttribution.textContent = meme.author ? `— ${meme.author}` : '';
+    els.memePanel.hidden = false;
+    requestAnimationFrame(() => els.memePanel.classList.add('is-visible'));
+  };
+
+  const reveal = (element) => {
+    if (!element) return;
+    element.classList.remove('is-visible');
+    // Force reflow so animation restarts
+    void element.offsetWidth;
+    requestAnimationFrame(() => element.classList.add('is-visible'));
+  };
+
+  const setToken = (token) => {
+    state.token = token;
+    if (token) {
+      localStorage.setItem(STORAGE_KEY, token);
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  };
+
+  const clearStatus = () => {
+    els.dashboardStatus.hidden = true;
+    els.dashboardStatus.textContent = '';
+    els.dashboardStatus.classList.remove('error', 'success');
+  };
+
+  const setStatus = (text, type = '') => {
+    if (!text) {
+      clearStatus();
+      return;
+    }
+    els.dashboardStatus.hidden = false;
+    els.dashboardStatus.textContent = text;
+    els.dashboardStatus.classList.remove('error', 'success');
+    if (type) {
+      els.dashboardStatus.classList.add(type);
+    }
+  };
+
+  const showLogin = (message) => {
+    els.dashboardPanel.hidden = true;
+    els.dashboardPanel.classList.remove('is-visible');
+    els.loginPanel.hidden = false;
+    reveal(els.loginPanel);
+    if (els.memePanel) {
+      els.memePanel.hidden = true;
+      els.memePanel.classList.remove('is-visible');
+    }
+    if (message) {
+      els.loginMessage.hidden = false;
+      els.loginMessage.textContent = message;
+    } else {
+      els.loginMessage.hidden = true;
+      els.loginMessage.textContent = '';
+    }
+  };
+
+  const showDashboard = () => {
+    els.loginPanel.hidden = true;
+    els.loginPanel.classList.remove('is-visible');
+    els.dashboardPanel.hidden = false;
+    els.loginMessage.hidden = true;
+    reveal(els.dashboardPanel);
+    if (els.memePanel && !els.memePanel.hidden) {
+      reveal(els.memePanel);
+    }
+  };
+
+  const fetchJSON = async (url, options = {}) => {
+    const { skipAuth, ...rest } = options;
+    const config = { ...rest };
+    config.headers = new Headers(config.headers || {});
+    if (config.body && !config.headers.has('Content-Type')) {
+      config.headers.set('Content-Type', 'application/json');
+    }
+    if (!skipAuth && state.token) {
+      config.headers.set('Authorization', `Bearer ${state.token}`);
+    }
+    const response = await fetch(url, config);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.ok === false) {
+      const error = new Error(payload.error || 'request_failed');
+      error.response = response;
+      error.payload = payload;
+      throw error;
+    }
+    return payload;
+  };
+
+  const renderMember = () => {
+    if (!state.member) return;
+    els.memberName.textContent =
+      state.member.displayName || state.member.loginId || state.member.id;
+    const deptName = state.department?.name || 'General';
+    els.memberMeta.textContent = `${deptName} • ${state.member.role ? state.member.role.toUpperCase() : 'MEMBER'}`;
+  };
+
+  const renderStats = () => {
+    els.statsRow.innerHTML = '';
+    const stats = state.stats || {};
+    const statEntries = [
+      { label: 'My open tasks', value: stats.myOpenTasks || 0 },
+      { label: 'Blocked', value: stats.myBlockedTasks || 0 },
+      { label: 'Upcoming events', value: stats.upcomingEvents || 0 }
+    ];
+    statEntries.forEach((stat) => {
+      const pill = document.createElement('div');
+      pill.className = 'stat-pill';
+      pill.innerHTML = `<strong>${stat.value}</strong><span>${stat.label}</span>`;
+      els.statsRow.appendChild(pill);
+    });
+  };
+
+  const updateDepartmentFilter = () => {
+    if (!els.departmentFilter) return;
+    const options = [];
+    const myTeamLabel = state.department?.name
+      ? `My team (${state.department.name})`
+      : 'My team';
+    options.push({ value: 'mine', label: myTeamLabel });
+    options.push({ value: 'all', label: 'All teams' });
+    (state.departments || []).forEach((dept) => {
+      if (!dept?.id) return;
+      options.push({ value: dept.id, label: dept.name || dept.id });
+    });
+
+    const previous = state.filters.department;
+    els.departmentFilter.innerHTML = '';
+    options.forEach((opt) => {
+      const optionEl = document.createElement('option');
+      optionEl.value = opt.value;
+      optionEl.textContent = opt.label;
+      els.departmentFilter.appendChild(optionEl);
+    });
+    const allowed = options.map((opt) => opt.value);
+    const nextValue = allowed.includes(previous) ? previous : 'mine';
+    els.departmentFilter.value = nextValue;
+    state.filters.department = nextValue;
+  };
+
+  const statusBadge = (status) => {
+    const value = (status || 'todo').toLowerCase();
+    const label = escapeHTML(value.replace('_', ' '));
+    return `<span class="badge status-${value}">${label}</span>`;
+  };
+
+  const formatDateTime = (value) => {
+    if (!value) return 'No due date';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'No due date';
+    return date.toLocaleString();
+  };
+
+  const renderTasks = () => {
+    els.taskList.innerHTML = '';
+    if (!state.tasks.length) {
+      const empty = document.createElement('p');
+      empty.className = 'muted';
+      empty.textContent = 'No tasks match the current filters.';
+      els.taskList.appendChild(empty);
+      return;
+    }
+    state.tasks.forEach((task) => {
+      const card = document.createElement('article');
+      card.className = 'task-card';
+      if (task.isMine) card.classList.add('task-card--mine');
+      if (!task.hasOwners) card.classList.add('task-card--unassigned');
+      if (task.departmentColor) {
+        card.style.setProperty('--task-accent', task.departmentColor);
+      }
+      const title = escapeHTML(task.title || 'Untitled task');
+      const description = escapeHTML(task.description || 'No description provided.');
+      const departmentName = escapeHTML(task.departmentName || task.departmentId || 'N/A');
+      const dueText = escapeHTML(formatDateTime(task.dueAt));
+      const owners = (task.owners || []).map((owner) => {
+        indexPerson(owner);
+        const label = escapeHTML(owner.displayName || owner.loginId || owner.id || 'Unknown');
+        return `<span class="owner-chip">${label}</span>`;
+      });
+      const ownersBlock = owners.length ? owners.join('') : '<span class="badge badge--warn">Unassigned</span>';
+      const actions = [
+        `<button class="btn-ghost" data-action="update" data-task="${task.id}">Add update</button>`
+      ];
+      if (task.lastUpdate?.member) {
+        indexPerson(task.lastUpdate.member);
+      }
+      if (state.member.role === 'lead') {
+        actions.push(`<button class="btn-ghost" data-action="edit" data-task="${task.id}">Quick status</button>`);
+      }
+      if (task.canClaim) {
+        actions.push(`<button class="btn-ghost" data-action="claim" data-task="${task.id}">Assign to me</button>`);
+      }
+      if (task.canUnclaim && task.isMine) {
+        actions.push(`<button class="btn-ghost" data-action="unclaim" data-task="${task.id}">Release task</button>`);
+      }
+      const assignmentHint =
+        !task.hasOwners && task.canClaim
+          ? '<p class="assignment-hint">Nobody has picked this yet—claim it to avoid overlaps.</p>'
+          : '';
+      const lastUpdateBlock = task.lastUpdate
+        ? `<div class="task-last-update"><strong>Last update:</strong> ${escapeHTML(task.lastUpdate.note || '')} — ${escapeHTML(task.lastUpdate.member?.displayName || task.lastUpdate.member?.loginId || task.lastUpdate.memberId || '')} (${escapeHTML(formatDateTime(task.lastUpdate.createdAt))})</div>`
+        : '';
+      card.innerHTML = `
+        <h3>
+          <span>${title}</span>
+          ${statusBadge(task.status)}
+        </h3>
+        <div class="task-team-tag">Team: ${departmentName}</div>
+        <p>${description}</p>
+        <div class="task-meta">
+          <span><strong>Due:</strong> ${dueText}</span>
+          <span><strong>Updates:</strong> ${task.updatesCount}</span>
+        </div>
+        <div class="task-owners">
+          ${ownersBlock}
+        </div>
+        ${lastUpdateBlock}
+        ${assignmentHint}
+        <div class="task-actions">
+          ${actions.join('')}
+        </div>
+        <details class="task-updates" data-task="${task.id}">
+          <summary>View updates</summary>
+          <div class="updates-list" data-updates="${task.id}"></div>
+        </details>
+      `;
+      els.taskList.appendChild(card);
+      requestAnimationFrame(() => card.classList.add('task-card--show'));
+    });
+  };
+
+  const renderEvents = () => {
+    els.eventList.innerHTML = '';
+    if (!state.events.length) {
+      const empty = document.createElement('p');
+      empty.className = 'muted';
+      empty.textContent = 'No upcoming events.';
+      els.eventList.appendChild(empty);
+      return;
+    }
+    state.events.forEach((event) => {
+      const card = document.createElement('article');
+      card.className = 'event-card';
+      const startDate = event.startAt ? new Date(event.startAt).toLocaleString() : 'TBD';
+      const endDate = event.endAt ? new Date(event.endAt).toLocaleString() : '';
+      const hostChips = (event.hostMembers || []).map((member) => {
+        indexPerson(member);
+        const label = escapeHTML(member.displayName || member.loginId || member.id || '');
+        return `<span class="owner-chip">${label}</span>`;
+      }).join('');
+      card.innerHTML = `
+        <h4>${escapeHTML(event.title || '')}</h4>
+        <p>${escapeHTML(event.description || '')}</p>
+        <p><strong>${startDate}</strong>${endDate ? ` → ${endDate}` : ''}</p>
+        <p>${escapeHTML(event.location || '')}</p>
+        ${hostChips ? `<div class="task-owners">${hostChips}</div>` : ''}
+        ${event.link ? `<p><a href="${escapeHTML(event.link)}" target="_blank" rel="noopener noreferrer">Join/Details</a></p>` : ''}
+      `;
+      els.eventList.appendChild(card);
+      requestAnimationFrame(() => card.classList.add('event-card--show'));
+    });
+  };
+
+  const refreshTasks = async () => {
+    const params = new URLSearchParams();
+    if (state.filters.showMine) params.set('mine', 'true');
+    if (state.filters.status && state.filters.status !== 'all') {
+      params.set('status', state.filters.status);
+    }
+    if (state.filters.department && state.filters.department !== 'all') {
+      const deptValue =
+        state.filters.department === 'mine'
+          ? state.department?.id || state.member?.departmentId
+          : state.filters.department;
+      if (deptValue) {
+        params.set('department', deptValue);
+      }
+    }
+    const query = params.toString();
+    const response = await fetchJSON(`/api/team/tasks${query ? `?${query}` : ''}`);
+    state.tasks = response.tasks || [];
+    state.tasks.forEach((task) => {
+      (task.owners || []).forEach(indexPerson);
+    });
+    renderTasks();
+  };
+
+  const refreshEvents = async () => {
+    const response = await fetchJSON('/api/team/events');
+    let events = Array.isArray(response.events) ? [...response.events] : [];
+    const hasLiveHackathon = events.some(
+      (event) =>
+        typeof event.title === 'string' &&
+        event.title.toLowerCase().includes('bugbash hackathon 22nd november')
+    );
+    if (!hasLiveHackathon) {
+      events.unshift({
+        id: 'event-bugbash-hackathon-live',
+        title: 'BugBash Hackathon – 22 November',
+        description: 'Final production push: doors open at 8:00 am, finale showcase 7:00 pm.',
+        startAt: '2025-11-22T08:00:00.000Z',
+        endAt: '2025-11-22T19:00:00.000Z',
+        location: 'SVYASA Main Hall & Labs',
+        link: '',
+        hosts: [],
+        hostMembers: [],
+        departmentIds: []
+      });
+    }
+    state.events = events;
+    renderEvents();
+    if (state.stats) {
+      state.stats.upcomingEvents = events.length;
+      renderStats();
+    }
+  };
+
+  const refreshProfile = async () => {
+    const response = await fetchJSON('/api/team/me');
+    state.member = response.member;
+    state.department = response.department;
+    state.departments = response.departments || [];
+    state.stats = response.stats || {};
+    indexPerson(state.member);
+    renderMember();
+    renderStats();
+    renderMeme();
+    updateDepartmentFilter();
+    els.myTasksToggle.checked = state.filters.showMine;
+    if (state.member?.role === 'lead') {
+      els.newTaskBtn.hidden = false;
+    } else {
+      els.newTaskBtn.hidden = true;
+    }
+  };
+
+  const loadInitialData = async () => {
+    try {
+      setStatus('Loading dashboard...');
+      await refreshProfile();
+      await Promise.all([refreshTasks(), refreshEvents()]);
+      setStatus('');
+      showDashboard();
+    } catch (err) {
+      console.error(err);
+      setStatus('Could not load dashboard. Please try signing in again.', 'error');
+      setToken(null);
+      showLogin('Session expired. Please sign in again.');
+    }
+  };
+
+  const handleLogin = async (event) => {
+    event.preventDefault();
+    const formData = new FormData(els.loginForm);
+    const identifier = formData.get('identifier');
+    const code = formData.get('code');
+    if (!identifier || !code) {
+      els.loginMessage.hidden = false;
+      els.loginMessage.textContent = 'Enter both your name and access code.';
+      return;
+    }
+    els.loginSubmit.disabled = true;
+    els.loginSubmit.textContent = 'Signing in...';
+    els.loginMessage.hidden = true;
+    try {
+      const payload = await fetchJSON('/api/team/login', {
+        method: 'POST',
+        body: JSON.stringify({ email: identifier, code }),
+        skipAuth: true
+      });
+      setToken(payload.token);
+      state.member = payload.member;
+      state.department = payload.department;
+      state.stats = payload.stats || {};
+      els.loginForm.reset();
+      await loadInitialData();
+    } catch (err) {
+      const errorCode = err.payload?.error || 'signin_failed';
+      const messages = {
+        missing_credentials: 'Enter both your name and access code.',
+        member_not_found: 'We could not find that name. Check the spelling.',
+        invalid_credentials: 'Access code did not match. Check the latest code.',
+        access_not_configured: 'Access for this name is not configured yet.',
+        team_dashboard_disabled: 'Team dashboard is disabled right now.',
+        signin_failed: 'Sign-in failed. Try again.'
+      };
+      els.loginMessage.hidden = false;
+      els.loginMessage.textContent = messages[errorCode] || 'Could not sign in. Try again.';
+    } finally {
+      els.loginSubmit.disabled = false;
+      els.loginSubmit.textContent = 'Sign in';
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetchJSON('/api/team/logout', { method: 'POST' });
+    } catch (err) {
+      console.warn('Logout request failed', err);
+    } finally {
+      setToken(null);
+      state.member = null;
+      showLogin('Signed out.');
+    }
+  };
+
+  const loadUpdatesIfNeeded = async (detailsEl) => {
+    if (!detailsEl.open) return;
+    const taskId = detailsEl.dataset.task;
+    if (!taskId) return;
+    const container = detailsEl.querySelector(`[data-updates="${taskId}"]`);
+    if (!container) return;
+    try {
+      container.textContent = 'Loading updates...';
+      const response = await fetchJSON(`/api/team/tasks/${encodeURIComponent(taskId)}/updates`);
+      const updates = Array.isArray(response.updates) ? [...response.updates] : [];
+      const fallbackTask = state.tasks.find((task) => task.id === taskId);
+      if (fallbackTask?.lastUpdate) {
+        const exists = updates.some((item) => item?.id === fallbackTask.lastUpdate.id);
+        if (!exists) {
+          updates.unshift({
+            id: fallbackTask.lastUpdate.id || 'last-update',
+            note: fallbackTask.lastUpdate.note || '',
+            statusAfter: fallbackTask.lastUpdate.statusAfter || fallbackTask.lastUpdate.status || '',
+            createdAt: fallbackTask.lastUpdate.createdAt || '',
+            member: fallbackTask.lastUpdate.member,
+            memberId: fallbackTask.lastUpdate.memberId
+          });
+        }
+      }
+      if (!updates.length) {
+        container.textContent = 'No updates yet.';
+        return;
+      }
+      const markup = updates
+        .map((update) => {
+          indexPerson(update.member);
+          const memberName =
+            update.member?.displayName || update.member?.loginId || update.member?.id || 'Unknown';
+          const statusText = update.statusAfter
+            ? ` • ${escapeHTML(update.statusAfter.replace('_',' '))}`
+            : '';
+          const timestamp = update.createdAt ? formatDateTime(update.createdAt) : '';
+          return `<div class="update-pill"><strong>${escapeHTML(memberName)}${statusText}</strong><span>${escapeHTML(update.note || '')}</span><br/><small>${escapeHTML(timestamp)}</small></div>`;
+        })
+        .join('');
+      container.innerHTML = markup;
+    } catch (err) {
+      container.textContent = 'Could not load updates.';
+    }
+  };
+
+  const handleTaskAction = async (event) => {
+    const button = event.target.closest('button[data-action]');
+    if (!button) return;
+    const action = button.dataset.action;
+    const taskId = button.dataset.task;
+    if (!taskId) return;
+    if (action === 'update') {
+      const note = prompt('Add a short progress update (120 chars max).', '');
+      if (!note) return;
+      if (note.length > 240) {
+        alert('Please keep the update concise (under 240 characters).');
+        return;
+      }
+      let status = '';
+      if (confirm('Mark this task as completed?')) {
+        status = 'done';
+      } else if (confirm('Is this task blocked?')) {
+        status = 'blocked';
+      }
+      try {
+        await fetchJSON(`/api/team/tasks/${encodeURIComponent(taskId)}/updates`, {
+          method: 'POST',
+          body: JSON.stringify({ note, status: status || undefined })
+        });
+        setStatus('Update saved.', 'success');
+        await refreshProfile();
+        await refreshTasks();
+      } catch (err) {
+        const errorCode = err.payload?.error || 'update_failed';
+        const messages = {
+          missing_note: 'Write a note before submitting an update.',
+          invalid_status: 'Status update not recognised.',
+          forbidden: 'You do not have permission to update this task.',
+          update_failed: 'Could not save update. Try again.'
+        };
+        setStatus(messages[errorCode] || 'Could not save update.', 'error');
+      }
+      return;
+    }
+    if (action === 'edit' && state.member?.role === 'lead') {
+      const status = prompt('Set new status (todo, in_progress, blocked, done):', '');
+      if (!status) return;
+      const normalized = status.trim().toLowerCase();
+      if (!['todo','in_progress','blocked','done'].includes(normalized)) {
+        alert('Status must be one of: todo, in_progress, blocked, done.');
+        return;
+      }
+      try {
+        await fetchJSON(`/api/team/tasks/${encodeURIComponent(taskId)}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ status: normalized })
+        });
+        setStatus('Task updated.', 'success');
+        await refreshProfile();
+        await refreshTasks();
+      } catch (err) {
+        setStatus('Could not update task.', 'error');
+      }
+      return;
+    }
+    if (action === 'claim' || action === 'unclaim') {
+      try {
+        await fetchJSON(`/api/team/tasks/${encodeURIComponent(taskId)}/claim`, {
+          method: 'POST',
+          body: JSON.stringify({ action: action === 'claim' ? 'claim' : 'unclaim' })
+        });
+        setStatus(
+          action === 'claim' ? 'Task assigned to you.' : 'Task released.',
+          'success'
+        );
+        await refreshProfile();
+        await refreshTasks();
+      } catch (err) {
+        const errorCode = err.payload?.error || 'claim_failed';
+        const messages = {
+          already_claimed: 'Someone already picked this task. Sync with them before joining.',
+          not_assigned: 'You are not on this task.',
+          forbidden: 'You cannot change assignment on this task.',
+          claim_failed: 'Could not update assignment. Try again.'
+        };
+        setStatus(messages[errorCode] || 'Could not update assignment.', 'error');
+      }
+    }
+  };
+
+  const handleCreateTask = async () => {
+    const title = prompt('Task title:', '');
+    if (!title) return;
+    const description = prompt('Describe the task (optional):', '') || '';
+    const dueAt = prompt('Due date (YYYY-MM-DD or leave blank):', '');
+    const payload = { title, description };
+    if (dueAt) {
+      payload.dueAt = dueAt.endsWith('Z') || dueAt.includes('T') ? dueAt : `${dueAt}T09:00:00.000Z`;
+    }
+    try {
+      await fetchJSON('/api/team/tasks', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      setStatus('Task created.', 'success');
+      await refreshProfile();
+      await refreshTasks();
+    } catch (err) {
+      const errorCode = err.payload?.error || 'create_failed';
+      const messages = {
+        missing_title: 'Give the task a title.',
+        invalid_owner: 'One of the selected owners is invalid.',
+        invalid_department: 'Select a valid department before creating tasks.',
+        forbidden: 'Only leads can create tasks.',
+        create_failed: 'Could not create the task.'
+      };
+      setStatus(messages[errorCode] || 'Could not create the task.', 'error');
+    }
+  };
+
+  els.loginForm.addEventListener('submit', handleLogin);
+  els.logoutBtn.addEventListener('click', handleLogout);
+  els.refreshBtn.addEventListener('click', async () => {
+    setStatus('Refreshing...');
+    await refreshProfile();
+    await Promise.all([refreshTasks(), refreshEvents()]);
+    setStatus('Refreshed.', 'success');
+    setTimeout(clearStatus, 2000);
+  });
+  if (els.memeShuffle) {
+    els.memeShuffle.addEventListener('click', () => {
+      renderMeme();
+      setStatus('Here’s a fresh meme for the sprint!', 'success');
+      setTimeout(clearStatus, 2000);
+    });
+  }
+  els.taskList.addEventListener('click', handleTaskAction);
+  els.taskList.addEventListener('toggle', (event) => {
+    if (event.target.matches('details.task-updates')) {
+      loadUpdatesIfNeeded(event.target);
+    }
+  });
+  els.departmentFilter.addEventListener('change', async (event) => {
+    state.filters.department = event.target.value;
+    await refreshTasks();
+  });
+  els.myTasksToggle.addEventListener('change', async (event) => {
+    state.filters.showMine = event.target.checked;
+    await refreshTasks();
+  });
+  els.statusFilter.addEventListener('change', async (event) => {
+    state.filters.status = event.target.value;
+    await refreshTasks();
+  });
+  els.newTaskBtn.addEventListener('click', handleCreateTask);
+
+  const storedToken = localStorage.getItem(STORAGE_KEY);
+  if (storedToken) {
+    setToken(storedToken);
+    loadInitialData();
+  } else {
+    showLogin();
+  }
+})();
+</script>
+</body>
+</html>
