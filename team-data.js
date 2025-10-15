@@ -109,7 +109,7 @@ export const teamMembers = [
     email: '',
     role: 'lead',
     departmentId: 'dept-hospitality',
-    accessCode: 'Utsav2025',
+    accessCode: 'utsav2025',
     identifiers: ['utsav']
   },
   {

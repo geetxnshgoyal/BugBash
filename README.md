@@ -60,6 +60,7 @@ The admin page is served from http://localhost:3000/admin. Sign in with the `ADM
 | `TEAM_DASHBOARD_ENABLED` | Toggle the `/team` dashboard (`true` by default; set to `false` to disable). |
 | `TEAM_SESSION_TTL_MS` | Milliseconds before organizer dashboard sessions expire (default 4h). |
 | `TEAM_LOGIN_CODES` | JSON map of email → access code (optional override for the built-in demo codes). |
+| `TEAM_SESSION_SECRET` | HMAC secret for signing team-session tokens (defaults to `ADMIN_TOKEN` if unset). |
 | `FIREBASE_TEAM_DEPARTMENTS_COLLECTION` | Firestore collection name for team departments (`team_departments` by default). |
 | `FIREBASE_TEAM_MEMBERS_COLLECTION` | Firestore collection for organizer accounts (`team_members` by default). |
 | `FIREBASE_TEAM_TASKS_COLLECTION` | Firestore collection for task documents (`team_tasks` by default). |

@@ -63,6 +63,7 @@ All endpoints require a valid organizer session (`Authorization: Bearer <token>`
    - Build `/api/team/login` issuing signed session tokens (passwordless or admin-seeded credentials).
    - Protect new routes with middleware similar to `adminAuth`.
    - Wire Express handlers to Firestore reads/writes (members, departments, tasks, updates, events).
+   - Use HMAC-signed JWTs (`TEAM_SESSION_SECRET`) for organizer sessions so stateless deployments work.
 2. **MVP Dashboard**
    - Add `/team` page with login form.
    - Implement task list + progress updates + event feed.

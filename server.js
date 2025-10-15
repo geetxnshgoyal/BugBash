@@ -51,7 +51,6 @@ const TEAM_DASHBOARD_ENABLED = process.env.TEAM_DASHBOARD_ENABLED !== 'false';
 const TEAM_SESSION_TTL_MS = Number(process.env.TEAM_SESSION_TTL_MS || 1000 * 60 * 60 * 4);
 const TEAM_ALLOWED_STATUSES = new Set(['todo', 'in_progress', 'blocked', 'done']);
 
-const teamSessions = new Map();
 const teamLoginOverrides = new Map();
 const rawTeamLoginCodes = process.env.TEAM_LOGIN_CODES?.trim();
 if (rawTeamLoginCodes) {
@@ -283,36 +282,61 @@ const safeCompare = (a, b) => {
   return crypto.timingSafeEqual(aBuffer, bBuffer);
 };
 
-const createTeamSession = (memberId) => {
-  const token = crypto.randomBytes(32).toString('hex');
-  teamSessions.set(token, { memberId, createdAt: Date.now() });
-  return token;
+const TEAM_SESSION_SECRET =
+  process.env.TEAM_SESSION_SECRET?.trim() ||
+  process.env.TEAM_LOGIN_MASTER_KEY?.trim() ||
+  ADMIN_TOKEN ||
+  process.env.SESSION_SECRET?.trim() ||
+  '';
+
+const createSignedToken = (payload, secret) => {
+  if (!secret) {
+    throw new Error('Team session secret not configured. Set TEAM_SESSION_SECRET or ADMIN_TOKEN.');
+  }
+  const body = encodeBase64Url(Buffer.from(JSON.stringify(payload), 'utf8'));
+  const signature = encodeBase64Url(crypto.createHmac('sha256', secret).update(body).digest());
+  return `${body}.${signature}`;
 };
 
-const touchTeamSession = (token) => {
-  const record = teamSessions.get(token);
-  if (!record) return null;
-  if (Date.now() - record.createdAt > TEAM_SESSION_TTL_MS) {
-    teamSessions.delete(token);
+const verifySignedToken = (token, secret) => {
+  if (!secret) return null;
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.trim().split('.');
+  if (parts.length !== 2) return null;
+  const [body, signature] = parts;
+  if (!body || !signature) return null;
+  const expectedSignature = encodeBase64Url(
+    crypto.createHmac('sha256', secret).update(body).digest()
+  );
+  if (!safeCompare(signature, expectedSignature)) return null;
+  const raw = decodeBase64Url(body);
+  if (!raw) return null;
+  try {
+    const payload = JSON.parse(raw.toString('utf8'));
+    if (!payload || typeof payload !== 'object') return null;
+    if (typeof payload.exp === 'number' && Date.now() > payload.exp) return null;
+    return payload;
+  } catch {
     return null;
   }
-  const nextRecord = { ...record, createdAt: Date.now() };
-  teamSessions.set(token, nextRecord);
-  return nextRecord.memberId;
 };
 
-const cleanupTeamSessions = () => {
-  const now = Date.now();
-  for (const [token, record] of teamSessions.entries()) {
-    if (now - record.createdAt > TEAM_SESSION_TTL_MS) {
-      teamSessions.delete(token);
-    }
-  }
-};
+const createTeamSession = (memberId) =>
+  createSignedToken(
+    {
+      memberId,
+      iat: Date.now(),
+      exp: Date.now() + TEAM_SESSION_TTL_MS
+    },
+    TEAM_SESSION_SECRET
+  );
 
-if (Number.isFinite(TEAM_SESSION_TTL_MS) && TEAM_SESSION_TTL_MS > 0) {
-  setInterval(cleanupTeamSessions, TEAM_SESSION_TTL_MS).unref?.();
-}
+const touchTeamSession = (token) => {
+  const payload = verifySignedToken(token, TEAM_SESSION_SECRET);
+  if (!payload || !payload.memberId) return null;
+  if (typeof payload.exp === 'number' && Date.now() > payload.exp) return null;
+  return payload.memberId;
+};
 
 const ensureMembersLoaded = async () => {
   if (!teamMembersById.size) {
@@ -1283,7 +1307,6 @@ const teamAuth = async (req, res, next) => {
       console.error('Failed to load member during auth', err);
     }
     if (!member) {
-      teamSessions.delete(token);
       return res.status(401).json({ ok: false, error: 'invalid_session' });
     }
   }
@@ -1346,9 +1369,6 @@ app.post('/api/team/login', async (req, res) => {
 
 app.post('/api/team/logout', teamAuth, (req, res) => {
   const token = req.teamSessionToken;
-  if (token) {
-    teamSessions.delete(token);
-  }
   res.json({ ok: true });
 });
 
