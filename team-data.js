@@ -262,7 +262,17 @@ export const teamMembers = [
     departmentId: '',
     accessCode: 'vivaan@1!',
     identifiers: ['vivaan']
-  }
+  },
+  {
+    id: 'mem-abhijit',
+    displayName: 'Abhijit',
+    loginId: 'abhijit',
+    email: '',
+    role: 'Mentor',
+    departmentId: '',
+    accessCode: 'abhijit10@',
+    identifiers: ['abhijit']
+  },
 ];
 
 export const teamTasks = [
