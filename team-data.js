@@ -268,10 +268,30 @@ export const teamMembers = [
     displayName: 'Abhijit',
     loginId: 'abhijit',
     email: '',
-    role: 'Mentor',
+    role: 'Member',
     departmentId: '',
     accessCode: 'abhijit10@',
     identifiers: ['abhijit']
+  },
+    {
+    id: 'mem-bikash',
+    displayName: 'Bikash',
+    loginId: 'bikash',
+    email: '',
+    role: 'Member',
+    departmentId: 'dept-sponsor',
+    accessCode: 'bikash10@',
+    identifiers: ['bikash']
+  },
+    {
+    id: 'mem-harshit',
+    displayName: 'Harshit',
+    loginId: 'harshit',
+    email: '',
+    role: 'Member',
+    departmentId: 'dept-tech',
+    accessCode: 'harshit10@',
+    identifiers: ['harshit']
   },
 ];
 
