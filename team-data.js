@@ -435,30 +435,6 @@ export const teamTasks = [
 ];
 
 export const teamTaskUpdates = [
-  {
-    id: 'update-decor-1',
-    taskId: 'task-venue-decor',
-    memberId: 'mem-sidharth',
-    note: 'Vendor shared revised stage mock-ups; coordinating power requirements with Anant.',
-    statusAfter: 'in_progress',
-    createdAt: '2025-02-03T11:20:00.000Z'
-  },
-  {
-    id: 'update-banner-1',
-    taskId: 'task-banner-print',
-    memberId: 'mem-anant',
-    note: 'Collected sponsor artwork; waiting on final media outreach tagline before sending to print.',
-    statusAfter: 'todo',
-    createdAt: '2025-02-04T09:05:00.000Z'
-  },
-  {
-    id: 'update-press-1',
-    taskId: 'task-press-brief',
-    memberId: 'mem-raaj',
-    note: 'Drafted press outline and pulled stats from last year; need Atul to confirm sponsor highlights.',
-    statusAfter: 'todo',
-    createdAt: '2025-02-03T15:45:00.000Z'
-  },
 
 ];
 
