@@ -51,7 +51,7 @@
     gap:18px;
     margin-bottom:28px;
   }
-  .brand{font-size:22px;font-weight:800;letter-spacing:.6px}
+  .brand{font-size:22px;font-weight:800;letter-spacing:.6px;color:var(--white);text-decoration:none;display:inline-flex;align-items:center;gap:6px}
   .brand span{color:var(--accent)}
   .nav-actions{
     display:flex;
@@ -471,9 +471,8 @@
 <canvas id="bg-canvas"></canvas>
 <div class="wrap">
   <header>
-    <div class="brand">BUG BASH <span>Team</span></div>
+    <a class="brand" href="/">BUG BASH <span>Team</span></a>
     <div class="nav-actions">
-      <a href="/">Home</a>
       <a href="/register">Registration</a>
       <a href="/admin">Admin</a>
     </div>
@@ -485,7 +484,7 @@
       <p class="muted">Private workspace for NST organizers. Sign in with your name and the latest access code.</p>
       <form id="loginForm" autocomplete="off">
         <label>Name
-          <input type="text" name="identifier" required placeholder="Enter your name" autocomplete="off">
+          <input type="text" name="identifier" required placeholder="Enter your name" autocomplete="off" pattern="[A-Za-z ]+" title="Use letters and spaces only">
         </label>
         <label>Access code
           <input type="password" name="code" required placeholder="Access code">
@@ -731,6 +730,19 @@
     memeAttribution: document.getElementById('memeAttribution'),
     memeShuffle: document.getElementById('memeShuffle')
   };
+
+  const identifierInput = els.loginForm?.querySelector('input[name="identifier"]');
+  if (identifierInput) {
+    identifierInput.addEventListener('input', () => {
+      const sanitized = identifierInput.value
+        .replace(/[^A-Za-z\s]/g, '')
+        .replace(/\s+/g, ' ')
+        .replace(/^\s+/, '');
+      if (sanitized !== identifierInput.value) {
+        identifierInput.value = sanitized;
+      }
+    });
+  }
 
   if (els.statusFilter) {
     els.statusFilter.value = state.filters.status;
