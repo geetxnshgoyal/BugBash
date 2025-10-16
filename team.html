@@ -1572,26 +1572,33 @@
     const elevated = isElevatedMember();
     if (!elevated) {
       wrapper.hidden = true;
+      wrapper.style.display = 'none';
       select.innerHTML = '';
       select.disabled = true;
       return;
     }
     const members = getRosterMembers();
     select.innerHTML = '';
-    select.disabled = !showWrapper;
-    wrapper.hidden = !showWrapper;
+    if (!showWrapper) {
+      select.disabled = true;
+      wrapper.hidden = true;
+      wrapper.style.display = 'none';
+      return;
+    }
+    select.disabled = false;
+    wrapper.hidden = false;
+    wrapper.style.display = 'block';
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'Select teammate';
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    select.appendChild(placeholder);
+
     const taskDeptId = task?.departmentId || state.department?.id || state.member?.departmentId || '';
     const inDepartment = members.filter((member) => member?.departmentId === taskDeptId);
     const others = members.filter((member) => member?.departmentId !== taskDeptId);
-
-    if (showWrapper) {
-      const placeholder = document.createElement('option');
-      placeholder.value = '';
-      placeholder.textContent = 'Select teammate';
-      placeholder.disabled = true;
-      placeholder.selected = true;
-      select.appendChild(placeholder);
-    }
 
     const addGroup = (label, items) => {
       if (!items.length) return;
@@ -1604,7 +1611,7 @@
           const option = document.createElement('option');
           option.value = member.id;
           const baseName = member.displayName || member.loginId || member.id;
-          const deptLabel = member.departmentId && member.departmentId !== taskDeptId ? ` • ${getDepartmentName(member.departmentId)}` : '';
+          const deptLabel = member.departmentId ? ` • ${getDepartmentName(member.departmentId)}` : '';
           option.textContent = `${baseName}${deptLabel}`;
           optgroup.appendChild(option);
         });
@@ -1614,19 +1621,19 @@
     addGroup(taskDeptId ? `${getDepartmentName(taskDeptId)} team` : 'My team', inDepartment);
     addGroup('Other teams', others);
 
-    const optionCount = Array.from(select.options).filter((option) => !option.disabled).length;
+    const optionCount = Array.from(select.options).filter((option) => !option.disabled && option.value).length;
     if (!optionCount) {
       const option = document.createElement('option');
       option.disabled = true;
       option.textContent = 'No teammates available.';
       select.appendChild(option);
       select.disabled = true;
-    } else {
-      if (selectedMemberId) {
-        const matched = Array.from(select.options).find((option) => option.value === selectedMemberId);
-        if (matched) {
-          select.value = selectedMemberId;
-        }
+      return;
+    }
+    if (selectedMemberId) {
+      const matched = Array.from(select.options).find((option) => option.value === selectedMemberId);
+      if (matched) {
+        select.value = selectedMemberId;
       }
     }
   };
@@ -2215,8 +2222,12 @@ const updateReminderRecipientUI = () => {
   if (!els.reminderMemberWrapper) return;
   const show = scope === 'member';
   els.reminderMemberWrapper.hidden = !show;
+  els.reminderMemberWrapper.style.display = show ? 'block' : 'none';
   if (els.reminderMember) {
     els.reminderMember.disabled = !show;
+    if (!show) {
+      els.reminderMember.value = '';
+    }
   }
 };
 
@@ -2229,7 +2240,7 @@ const updateReminderRecipientUI = () => {
       els.reminderRecipient.value = owners.length ? 'owners' : 'member';
     }
     const showMemberSelect = (els.reminderRecipient?.value || 'owners') === 'member';
-    populateReminderMembers(task, owners[0] || '', showMemberSelect);
+    populateReminderMembers(task, showMemberSelect ? owners[0] || '' : '', showMemberSelect);
     updateReminderRecipientUI();
     if (els.reminderTaskTitle) {
       els.reminderTaskTitle.textContent = task.title || 'Untitled task';
@@ -2798,7 +2809,8 @@ const updateReminderRecipientUI = () => {
       if (!task) return;
       const owners = Array.isArray(task.ownerIds) ? task.ownerIds : [];
       const isMemberScope = els.reminderRecipient.value === 'member';
-      populateReminderMembers(task, isMemberScope ? '' : '', isMemberScope);
+      const defaultMember = isMemberScope ? owners[0] || '' : '';
+      populateReminderMembers(task, defaultMember, isMemberScope);
     });
   }
   document.addEventListener('keydown', (event) => {
