@@ -311,6 +311,131 @@
     padding:8px 16px;
     font-size:13px;
   }
+  body.modal-open{
+    overflow:hidden;
+  }
+  .modal-backdrop{
+    position:fixed;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:28px 20px;
+    background:rgba(2,10,20,0.78);
+    backdrop-filter:blur(10px);
+    z-index:60;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .24s ease;
+  }
+  .modal-backdrop.is-open{
+    opacity:1;
+    pointer-events:all;
+  }
+  .modal-panel{
+    width:100%;
+    max-width:520px;
+    background:linear-gradient(180deg,rgba(19,32,54,0.88),rgba(8,14,26,0.92));
+    border-radius:20px;
+    border:1px solid rgba(123,224,74,0.18);
+    box-shadow:0 28px 64px rgba(4,12,24,0.55);
+    padding:24px 26px;
+    position:relative;
+    transform:translateY(18px);
+    transition:transform .24s ease;
+  }
+  .modal-backdrop.is-open .modal-panel{
+    transform:translateY(0);
+  }
+  .modal-header{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:18px;
+    margin-bottom:14px;
+  }
+  .modal-header h3{
+    margin:0;
+    font-size:20px;
+    letter-spacing:.4px;
+  }
+  .modal-tagline{
+    margin:0 0 18px;
+    font-size:14px;
+    color:var(--muted);
+  }
+  .modal-close{
+    border:none;
+    background:rgba(148,163,184,0.1);
+    color:var(--muted);
+    border-radius:999px;
+    width:32px;
+    height:32px;
+    font-size:18px;
+    line-height:1;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:background .18s ease,color .18s ease;
+  }
+  .modal-close:hover{
+    background:rgba(123,224,74,0.2);
+    color:var(--accent);
+  }
+  .modal-body{
+    display:grid;
+    gap:16px;
+  }
+  .modal-body label{
+    margin:0;
+  }
+  .modal-body input,
+  .modal-body select,
+  .modal-body textarea{
+    width:100%;
+  }
+  .modal-body textarea{
+    min-height:96px;
+    resize:vertical;
+  }
+  .modal-meta{
+    font-size:13px;
+    color:var(--muted);
+  }
+  .modal-actions{
+    display:flex;
+    justify-content:flex-end;
+    gap:12px;
+    margin-top:10px;
+  }
+  .modal-actions .btn-ghost{
+    padding:10px 18px;
+  }
+  .modal-status{
+    margin:4px 0 0;
+    font-size:13px;
+    color:var(--muted);
+  }
+  .modal-status.error{color:var(--danger);}
+  .modal-status.success{color:var(--accent);}
+  .modal-divider{
+    height:1px;
+    background:rgba(148,163,184,0.18);
+    margin:4px 0 4px;
+    border:none;
+  }
+  .modal-highlight{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-size:13px;
+    color:var(--muted);
+    background:rgba(123,224,74,0.12);
+    padding:8px 12px;
+    border-radius:12px;
+    border:1px solid rgba(123,224,74,0.18);
+  }
   .status-menu{
     position:absolute;
     z-index:40;
@@ -553,6 +678,73 @@
       </div>
     </section>
   </main>
+
+  <div class="modal-backdrop" id="taskModal" hidden>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="taskModalTitleLabel">
+      <div class="modal-header">
+        <h3 id="taskModalTitleLabel">Create Task</h3>
+        <button type="button" class="modal-close" data-close-modal="taskModal" aria-label="Close create task modal">×</button>
+      </div>
+      <p class="modal-tagline">Launch a fresh mission for the crew. Leads can route tasks across any team.</p>
+      <form id="taskModalForm" class="modal-body">
+        <label>
+          Task title
+          <input type="text" id="taskModalTitle" name="title" required maxlength="120" placeholder="e.g. Prep kickoff slides">
+        </label>
+        <label>
+          Task details
+          <textarea id="taskModalDescription" name="description" maxlength="500" placeholder="Outline key steps, context, or links."></textarea>
+        </label>
+        <label>
+          Department
+          <select id="taskModalDepartment" name="department" required>
+            <option value="">Select a department...</option>
+          </select>
+        </label>
+        <label>
+          Due date
+          <input type="date" id="taskModalDue" name="due">
+        </label>
+        <p class="modal-status" id="taskModalStatus" hidden></p>
+        <hr class="modal-divider">
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" id="taskModalCancel">Cancel</button>
+          <button type="submit" id="taskModalSubmit">Create task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="updateModal" hidden>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="updateModalTitle">
+      <div class="modal-header">
+        <h3 id="updateModalTitle">Add Progress Update</h3>
+        <button type="button" class="modal-close" data-close-modal="updateModal" aria-label="Close update modal">×</button>
+      </div>
+      <div class="modal-highlight">
+        <span id="updateModalTaskName"></span>
+        <span id="updateModalTaskStatus"></span>
+      </div>
+      <form id="updateModalForm" class="modal-body">
+        <label>
+          Update note
+          <textarea id="updateModalNote" name="note" maxlength="240" placeholder="Share what moved forward or what’s blocked." required></textarea>
+        </label>
+        <label>
+          Status after update
+          <select id="updateModalStatus" name="status">
+            <option value="">Keep current status</option>
+          </select>
+        </label>
+        <p class="modal-status" id="updateModalMessage" hidden></p>
+        <hr class="modal-divider">
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" id="updateModalCancel">Cancel</button>
+          <button type="submit" id="updateModalSubmit">Save update</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -706,6 +898,9 @@
     people: new Map()
   };
   let lastMemeIndex = -1;
+  let activeUpdateTaskId = null;
+  let createTaskSubmitting = false;
+  let updateSubmitting = false;
 
   const els = {
     loginPanel: document.getElementById('loginPanel'),
@@ -728,7 +923,25 @@
     memePanel: document.getElementById('memePanel'),
     memeText: document.getElementById('memeText'),
     memeAttribution: document.getElementById('memeAttribution'),
-    memeShuffle: document.getElementById('memeShuffle')
+    memeShuffle: document.getElementById('memeShuffle'),
+    taskModal: document.getElementById('taskModal'),
+    taskModalForm: document.getElementById('taskModalForm'),
+    taskModalTitle: document.getElementById('taskModalTitle'),
+    taskModalDescription: document.getElementById('taskModalDescription'),
+    taskModalDepartment: document.getElementById('taskModalDepartment'),
+    taskModalDue: document.getElementById('taskModalDue'),
+    taskModalStatus: document.getElementById('taskModalStatus'),
+    taskModalCancel: document.getElementById('taskModalCancel'),
+    taskModalSubmit: document.getElementById('taskModalSubmit'),
+    updateModal: document.getElementById('updateModal'),
+    updateModalForm: document.getElementById('updateModalForm'),
+    updateModalNote: document.getElementById('updateModalNote'),
+    updateModalStatus: document.getElementById('updateModalStatus'),
+    updateModalMessage: document.getElementById('updateModalMessage'),
+    updateModalCancel: document.getElementById('updateModalCancel'),
+    updateModalSubmit: document.getElementById('updateModalSubmit'),
+    updateModalTaskName: document.getElementById('updateModalTaskName'),
+    updateModalTaskStatus: document.getElementById('updateModalTaskStatus')
   };
 
   const identifierInput = els.loginForm?.querySelector('input[name="identifier"]');
@@ -968,6 +1181,127 @@
     }
   };
 
+  const setModalMessage = (element, message, type = '') => {
+    if (!element) return;
+    element.classList.remove('error', 'success');
+    if (!message) {
+      element.hidden = true;
+      element.textContent = '';
+      return;
+    }
+    element.hidden = false;
+    element.textContent = message;
+    if (type) {
+      element.classList.add(type);
+    }
+  };
+
+  const isModalOpen = (modal) => modal && modal.classList.contains('is-open');
+
+  const openModal = (modal) => {
+    if (!modal) return;
+    modal.hidden = false;
+    requestAnimationFrame(() => modal.classList.add('is-open'));
+    document.body.classList.add('modal-open');
+  };
+
+  const closeModal = (modal) => {
+    if (!modal || modal.hidden) return;
+    modal.classList.remove('is-open');
+    const finalize = () => {
+      modal.hidden = true;
+      modal.removeEventListener('transitionend', finalize);
+      if (!document.querySelector('.modal-backdrop.is-open')) {
+        document.body.classList.remove('modal-open');
+      }
+    };
+    const transitionDuration = parseFloat(getComputedStyle(modal).transitionDuration || '0');
+    if (transitionDuration > 0) {
+      modal.addEventListener('transitionend', finalize, { once: true });
+    } else {
+      finalize();
+    }
+  };
+
+  const registerModalBackdrop = (modal) => {
+    if (!modal) return;
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal) {
+        if (modal.id === 'taskModal') {
+          closeTaskModal();
+        } else if (modal.id === 'updateModal') {
+          closeUpdateModalSafe();
+        } else {
+          closeModal(modal);
+        }
+      }
+    });
+  };
+
+  const buildDueDateIso = (value) => {
+    if (!value) return '';
+    const parts = value.split('-');
+    if (parts.length !== 3) return '';
+    const [year, month, day] = parts.map((part) => Number.parseInt(part, 10));
+    if (!year || !month || !day) return '';
+    const date = new Date(Date.UTC(year, month - 1, day, 9, 0, 0));
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toISOString();
+  };
+
+  const populateTaskModalDepartments = () => {
+    const select = els.taskModalDepartment;
+    if (!select) return;
+    const previous = select.value;
+    const options = [];
+    const seen = new Set();
+    if (state.department?.id) {
+      const label = state.department.name ? `${state.department.name} (My team)` : `My team (${state.department.id})`;
+      options.push({ value: state.department.id, label });
+      seen.add(state.department.id);
+    }
+    (state.departments || []).forEach((dept) => {
+      if (!dept || typeof dept !== 'object' || !dept.id) return;
+      if (seen.has(dept.id)) return;
+      options.push({ value: dept.id, label: dept.name || dept.id });
+      seen.add(dept.id);
+    });
+    select.innerHTML = '';
+    if (!options.length) {
+      const fallback = document.createElement('option');
+      fallback.value = '';
+      fallback.textContent = 'Departments unavailable';
+      select.appendChild(fallback);
+      select.disabled = true;
+      return;
+    }
+    select.disabled = false;
+    options.forEach((opt) => {
+      const optionEl = document.createElement('option');
+      optionEl.value = opt.value;
+      optionEl.textContent = opt.label;
+      select.appendChild(optionEl);
+    });
+    const allowed = options.map((opt) => opt.value);
+    let nextValue = allowed.includes(previous) ? previous : options[0].value;
+    if (!allowed.includes(nextValue)) {
+      nextValue = options[0].value;
+    }
+    select.value = nextValue;
+  };
+
+  const populateUpdateStatusOptions = () => {
+    const select = els.updateModalStatus;
+    if (!select || select.dataset.initialized === 'true') return;
+    STATUS_OPTIONS.forEach((opt) => {
+      const optionEl = document.createElement('option');
+      optionEl.value = opt.value;
+      optionEl.textContent = opt.label;
+      select.appendChild(optionEl);
+    });
+    select.dataset.initialized = 'true';
+  };
+
   const showLogin = (message) => {
     els.dashboardPanel.hidden = true;
     els.dashboardPanel.classList.remove('is-visible');
@@ -1069,9 +1403,16 @@
     state.filters.department = nextValue;
   };
 
+  const formatStatusLabel = (status) => {
+    const normalized = (status || 'todo').toLowerCase();
+    const match = STATUS_OPTIONS.find((opt) => opt.value === normalized);
+    if (match) return match.label;
+    return normalized.replace(/_/g, ' ');
+  };
+
   const statusBadge = (status) => {
     const value = (status || 'todo').toLowerCase();
-    const label = escapeHTML(value.replace('_', ' '));
+    const label = escapeHTML(formatStatusLabel(value));
     return `<span class="badge status-${value}">${label}</span>`;
   };
 
@@ -1264,6 +1605,177 @@
     renderTasks();
   };
 
+  const resetCreateTaskModal = () => {
+    if (els.taskModalTitle) els.taskModalTitle.value = '';
+    if (els.taskModalDescription) els.taskModalDescription.value = '';
+    if (els.taskModalDue) els.taskModalDue.value = '';
+    setModalMessage(els.taskModalStatus, '');
+    populateTaskModalDepartments();
+  };
+
+  function closeTaskModal() {
+    setModalMessage(els.taskModalStatus, '');
+    closeModal(els.taskModal);
+  }
+
+  const openCreateTaskModal = () => {
+    if (!els.taskModal) return;
+    resetCreateTaskModal();
+    openModal(els.taskModal);
+    requestAnimationFrame(() => {
+      els.taskModalTitle?.focus();
+    });
+  };
+
+  const submitCreateTask = async (event) => {
+    event.preventDefault();
+    if (createTaskSubmitting) return;
+    const title = (els.taskModalTitle?.value || '').trim();
+    if (!title) {
+      setModalMessage(els.taskModalStatus, 'Give the task a title.', 'error');
+      els.taskModalTitle?.focus();
+      return;
+    }
+    const description = (els.taskModalDescription?.value || '').trim();
+    const departmentId = (els.taskModalDepartment?.value || '').trim();
+    if (!departmentId) {
+      setModalMessage(els.taskModalStatus, 'Choose a department for this task.', 'error');
+      els.taskModalDepartment?.focus();
+      return;
+    }
+    const dueValue = els.taskModalDue?.value || '';
+    const payload = { title, description, departmentId };
+    if (dueValue) {
+      const dueIso = buildDueDateIso(dueValue);
+      if (!dueIso) {
+        setModalMessage(els.taskModalStatus, 'Pick a valid due date.', 'error');
+        els.taskModalDue?.focus();
+        return;
+      }
+      payload.dueAt = dueIso;
+    }
+    createTaskSubmitting = true;
+    if (els.taskModalSubmit) {
+      els.taskModalSubmit.disabled = true;
+      els.taskModalSubmit.textContent = 'Creating...';
+    }
+    try {
+      await fetchJSON('/api/team/tasks', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      const elevated = isElevatedMember();
+      const successMessage = elevated ? 'Task created.' : 'Task submitted to leads & mentors.';
+      closeTaskModal();
+      setStatus(successMessage, 'success');
+      await refreshProfile();
+      await refreshTasks();
+    } catch (err) {
+      console.error(err);
+      const errorCode = err.payload?.error || 'create_failed';
+      const messages = {
+        missing_title: 'Give the task a title.',
+        invalid_owner: 'One of the selected owners is invalid.',
+        invalid_department: 'Select a valid department before creating tasks.',
+        forbidden: 'You do not have permission to create tasks.',
+        create_failed: 'Could not create the task.'
+      };
+      const message = messages[errorCode] || 'Could not create the task.';
+      setModalMessage(els.taskModalStatus, message, 'error');
+    } finally {
+      createTaskSubmitting = false;
+      if (els.taskModalSubmit) {
+        els.taskModalSubmit.disabled = false;
+        els.taskModalSubmit.textContent = 'Create task';
+      }
+    }
+  };
+
+  function closeUpdateModalSafe() {
+    activeUpdateTaskId = null;
+    setModalMessage(els.updateModalMessage, '');
+    closeModal(els.updateModal);
+  }
+
+  const openUpdateModal = (task) => {
+    if (!els.updateModal || !task) return;
+    activeUpdateTaskId = task.id;
+    setModalMessage(els.updateModalMessage, '');
+    if (els.updateModalNote) {
+      els.updateModalNote.value = '';
+    }
+    if (els.updateModalStatus) {
+      els.updateModalStatus.value = '';
+    }
+    if (els.updateModalTaskName) {
+      els.updateModalTaskName.textContent = task.title || 'Untitled task';
+    }
+    if (els.updateModalTaskStatus) {
+      const label = formatStatusLabel(task.status);
+      els.updateModalTaskStatus.textContent = `Status: ${label}`;
+    }
+    openModal(els.updateModal);
+    requestAnimationFrame(() => {
+      els.updateModalNote?.focus();
+    });
+  };
+
+  const submitUpdateModal = async (event) => {
+    event.preventDefault();
+    if (updateSubmitting) return;
+    if (!activeUpdateTaskId) {
+      setModalMessage(els.updateModalMessage, 'No task selected for updates.', 'error');
+      return;
+    }
+    const note = (els.updateModalNote?.value || '').trim();
+    if (!note) {
+      setModalMessage(els.updateModalMessage, 'Write a note before submitting an update.', 'error');
+      els.updateModalNote?.focus();
+      return;
+    }
+    if (note.length > 240) {
+      setModalMessage(els.updateModalMessage, 'Please keep the update concise (under 240 characters).', 'error');
+      return;
+    }
+    const statusValue = (els.updateModalStatus?.value || '').trim();
+    const payload = { note };
+    if (statusValue) {
+      payload.status = statusValue;
+    }
+    updateSubmitting = true;
+    if (els.updateModalSubmit) {
+      els.updateModalSubmit.disabled = true;
+      els.updateModalSubmit.textContent = 'Saving...';
+    }
+    try {
+      await fetchJSON(`/api/team/tasks/${encodeURIComponent(activeUpdateTaskId)}/updates`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      closeUpdateModalSafe();
+      setStatus('Update saved.', 'success');
+      await refreshProfile();
+      await refreshTasks();
+    } catch (err) {
+      console.error(err);
+      const errorCode = err.payload?.error || 'update_failed';
+      const messages = {
+        missing_note: 'Write a note before submitting an update.',
+        invalid_status: 'Status update not recognised.',
+        forbidden: 'You do not have permission to update this task.',
+        update_failed: 'Could not save update. Try again.'
+      };
+      const message = messages[errorCode] || 'Could not save update.';
+      setModalMessage(els.updateModalMessage, message, 'error');
+    } finally {
+      updateSubmitting = false;
+      if (els.updateModalSubmit) {
+        els.updateModalSubmit.disabled = false;
+        els.updateModalSubmit.textContent = 'Save update';
+      }
+    }
+  };
+
   const refreshEvents = async () => {
     const response = await fetchJSON('/api/team/events');
     let events = Array.isArray(response.events) ? [...response.events] : [];
@@ -1305,14 +1817,33 @@
     renderStats();
     renderMeme();
     updateDepartmentFilter();
+    populateTaskModalDepartments();
     els.myTasksToggle.checked = state.filters.showMine;
     const memberRole = getMemberRole();
     if (['lead', 'mentor', 'member'].includes(memberRole)) {
-      els.newTaskBtn.hidden = false;
-    } else {
-      els.newTaskBtn.hidden = true;
-    }
-  };
+    els.newTaskBtn.hidden = false;
+  } else {
+    els.newTaskBtn.hidden = true;
+  }
+};
+
+  populateTaskModalDepartments();
+  populateUpdateStatusOptions();
+  [els.taskModal, els.updateModal].forEach(registerModalBackdrop);
+  document.querySelectorAll('[data-close-modal]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const targetId = button.dataset.closeModal;
+      if (!targetId) return;
+      const modal = document.getElementById(targetId);
+      if (targetId === 'taskModal') {
+        closeTaskModal();
+      } else if (targetId === 'updateModal') {
+        closeUpdateModalSafe();
+      } else {
+        closeModal(modal);
+      }
+    });
+  });
 
   const loadInitialData = async () => {
     try {
@@ -1463,35 +1994,17 @@
     const elevated = isElevatedMember();
     closeStatusMenu();
     if (action === 'update') {
-      const noteInput = prompt('Add a short progress update (120 chars max).', '');
-      if (noteInput === null) return;
-      const trimmedNote = noteInput.trim();
-      if (!trimmedNote) {
-        setStatus('Write a note before submitting an update.', 'error');
+      if (!task) {
+        setStatus('Task could not be found.', 'error');
         return;
       }
-      if (trimmedNote.length > 240) {
-        alert('Please keep the update concise (under 240 characters).');
+      const isOwner =
+        Array.isArray(task.ownerIds) && state.member?.id ? task.ownerIds.includes(state.member.id) : false;
+      if (!isOwner && !elevated) {
+        setStatus('Only task owners and leads or mentors can add updates.', 'error');
         return;
       }
-      try {
-        await fetchJSON(`/api/team/tasks/${encodeURIComponent(taskId)}/updates`, {
-          method: 'POST',
-          body: JSON.stringify({ note: trimmedNote })
-        });
-        setStatus('Update saved.', 'success');
-        await refreshProfile();
-        await refreshTasks();
-      } catch (err) {
-        const errorCode = err.payload?.error || 'update_failed';
-        const messages = {
-          missing_note: 'Write a note before submitting an update.',
-          invalid_status: 'Status update not recognised.',
-          forbidden: 'You do not have permission to update this task.',
-          update_failed: 'Could not save update. Try again.'
-        };
-        setStatus(messages[errorCode] || 'Could not save update.', 'error');
-      }
+      openUpdateModal(task);
       return;
     }
     if (action === 'edit') {
@@ -1660,50 +2173,6 @@
     }
   };
 
-  const handleCreateTask = async () => {
-    const titleInput = prompt('Task title:', '');
-    if (titleInput === null) return;
-    const trimmedTitle = titleInput.trim();
-    if (!trimmedTitle) {
-      alert('Task title cannot be empty.');
-      return;
-    }
-    const descriptionInput = prompt('Describe the task (optional):', '');
-    if (descriptionInput === null) return;
-    const description = descriptionInput.trim();
-    const dueAtInput = prompt('Due date (YYYY-MM-DD or leave blank):', '');
-    if (dueAtInput === null) return;
-    const payload = { title: trimmedTitle, description };
-    const role = getMemberRole();
-    const elevated = role === 'lead' || role === 'mentor';
-    const dueAt = dueAtInput.trim();
-    if (dueAt) {
-      payload.dueAt = dueAt.endsWith('Z') || dueAt.includes('T') ? dueAt : `${dueAt}T09:00:00.000Z`;
-    }
-    try {
-      await fetchJSON('/api/team/tasks', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-      const successMessage = elevated
-        ? 'Task created.'
-        : 'Task submitted to leads & mentors.';
-      setStatus(successMessage, 'success');
-      await refreshProfile();
-      await refreshTasks();
-    } catch (err) {
-      const errorCode = err.payload?.error || 'create_failed';
-      const messages = {
-        missing_title: 'Give the task a title.',
-        invalid_owner: 'One of the selected owners is invalid.',
-        invalid_department: 'Select a valid department before creating tasks.',
-        forbidden: 'You do not have permission to create tasks.',
-        create_failed: 'Could not create the task.'
-      };
-      setStatus(messages[errorCode] || 'Could not create the task.', 'error');
-    }
-  };
-
   els.loginForm.addEventListener('submit', handleLogin);
   els.logoutBtn.addEventListener('click', handleLogout);
   els.refreshBtn.addEventListener('click', async () => {
@@ -1738,7 +2207,29 @@
     state.filters.status = event.target.value;
     await refreshTasks();
   });
-  els.newTaskBtn.addEventListener('click', handleCreateTask);
+  els.newTaskBtn.addEventListener('click', openCreateTaskModal);
+  if (els.taskModalForm) {
+    els.taskModalForm.addEventListener('submit', submitCreateTask);
+  }
+  if (els.taskModalCancel) {
+    els.taskModalCancel.addEventListener('click', closeTaskModal);
+  }
+  if (els.updateModalForm) {
+    els.updateModalForm.addEventListener('submit', submitUpdateModal);
+  }
+  if (els.updateModalCancel) {
+    els.updateModalCancel.addEventListener('click', closeUpdateModalSafe);
+  }
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') return;
+    if (isModalOpen(els.updateModal)) {
+      closeUpdateModalSafe();
+      return;
+    }
+    if (isModalOpen(els.taskModal)) {
+      closeTaskModal();
+    }
+  });
 
   showLogin();
 })();
