@@ -1033,6 +1033,7 @@
     stats: {},
     tasks: [],
     events: [],
+    departments: [],
     members: [],
     filters: {
       showMine: false,
@@ -1386,6 +1387,15 @@
     els.dashboardStatus.classList.remove('error', 'success');
     if (type) {
       els.dashboardStatus.classList.add(type);
+    }
+  };
+
+  const showLoadingPlaceholders = () => {
+    if (els.taskList) {
+      els.taskList.innerHTML = '<p class="muted">Loading tasks...</p>';
+    }
+    if (els.eventList) {
+      els.eventList.innerHTML = '<p class="muted">Loading events...</p>';
     }
   };
 
@@ -2623,13 +2633,17 @@ const updateReminderRecipientUI = () => {
     });
   });
 
-  const loadInitialData = async () => {
+  const loadInitialData = async ({ skipReveal = false, statusMessage = 'Loading dashboard...' } = {}) => {
     try {
-      setStatus('Loading dashboard...');
+      if (statusMessage !== null) {
+        setStatus(statusMessage);
+      }
       await refreshProfile();
       await Promise.all([refreshTasks(), refreshEvents()]);
       setStatus('');
-      showDashboard();
+      if (!skipReveal) {
+        showDashboard();
+      }
     } catch (err) {
       console.error(err);
       const errorCode = err?.payload?.error || '';
@@ -2672,8 +2686,19 @@ const updateReminderRecipientUI = () => {
       state.member = payload.member;
       state.department = payload.department;
       state.stats = payload.stats || {};
+      state.departments = [];
+      state.members = [];
+      state.tasks = [];
+      state.events = [];
+      state.people.clear();
       els.loginForm.reset();
-      loadInitialData();
+      renderMember();
+      renderStats();
+      renderMeme();
+      showLoadingPlaceholders();
+      showDashboard();
+      setStatus('Loading your workspace...');
+      loadInitialData({ skipReveal: true, statusMessage: null });
     } catch (err) {
       const errorCode = err.payload?.error || 'signin_failed';
       const messages = {
