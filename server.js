@@ -2153,17 +2153,19 @@ app.post('/api/team/tasks/:id/reminders', teamAuth, async (req, res) => {
     const statusLabel = formatSlackLabel(task.status || 'todo') || 'To do';
     const customLine = message ? slackEscape(message) : `Please take the next step on *${slackEscape(taskTitle)}*.`;
     const departmentName = department?.name || task.departmentName || task.departmentId || 'General';
-    const sentAtIso = new Date().toISOString();
-    const sentAtLabel = slackEscape(
-      new Date().toLocaleString('en-IN', {
-        dateStyle: 'medium',
-        timeStyle: 'medium'
-      })
-    );
+    const sentAt = new Date();
+    const sentAtIso = sentAt.toISOString();
+    const sentAtUnix = Math.floor(sentAt.getTime() / 1000);
+    const sentAtLabel = sentAt.toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      dateStyle: 'medium',
+      timeStyle: 'short'
+    });
+    const sentAtDisplay = `<!date^${sentAtUnix}^{date_short_pretty} at {time}|${sentAtLabel}>`;
     const safeTaskTitle = slackEscape(taskTitle);
 
     notifySlack({
-      text: `${textMentionList || 'Team'} — reminder for "${taskTitle}" @ ${sentAtIso}`,
+      text: `${textMentionList || 'Team'} — reminder for "${taskTitle}" • ${sentAtIso}`,
       channel: getSlackChannelForDepartment(department),
       blocks: [
         {
@@ -2182,7 +2184,7 @@ ${customLine}`
             { type: 'mrkdwn', text: `*Status:* ${statusLabel}` },
             { type: 'mrkdwn', text: `*Priority:* ${priorityLabel}` },
             { type: 'mrkdwn', text: `*Due:* ${dueLabel}` },
-            { type: 'mrkdwn', text: `*Sent at:* ${sentAtLabel}` }
+            { type: 'mrkdwn', text: `*Sent:* ${sentAtDisplay} (IST)` }
           ]
         },
         {
