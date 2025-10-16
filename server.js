@@ -38,7 +38,7 @@ const rawGithubTokenSecret =
   process.env.SESSION_SECRET?.trim() ||
   (GITHUB_CLIENT_SECRET ? `${GITHUB_CLIENT_SECRET}:${process.env.GITHUB_CLIENT_ID || ''}` : '') ||
   ADMIN_TOKEN;
-const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL?.trim() || '';
+let SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL?.trim() || '';
 const SLACK_FALLBACK_CHANNEL = process.env.SLACK_FALLBACK_CHANNEL?.trim() || '';
 const GITHUB_TOKEN_SECRET = rawGithubTokenSecret?.trim() || '';
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}$/;
@@ -1995,11 +1995,8 @@ app.patch('/api/team/tasks/:id', teamAuth, async (req, res) => {
       const normalizedOwnerIds = req.body.ownerIds
         .map((value) => (typeof value === 'string' ? value.trim() : ''))
         .filter(Boolean);
-      const missingOwners = normalizedOwnerIds.filter((ownerId) => !memberMap.has(ownerId));
-      if (missingOwners.length) {
-        return res.status(400).json({ ok: false, error: 'invalid_owner' });
-      }
-      updates.owner_ids = normalizedOwnerIds;
+      const validOwnerIds = normalizedOwnerIds.filter((ownerId) => memberMap.has(ownerId));
+      updates.owner_ids = validOwnerIds;
     }
     if (isElevated && typeof req.body?.departmentId === 'string') {
       const trimmedDepartment = req.body.departmentId.trim();
