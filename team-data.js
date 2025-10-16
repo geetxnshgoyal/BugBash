@@ -335,6 +335,16 @@ export const teamMembers = [
     identifiers: ['ishika'],
     slack_user_id: 'U09DX7A8PGU'
   },
+  {
+    id: 'mem-ishika',
+    displayName: 'Divya',
+    loginId: 'divya',
+    email: '',
+    role: 'Member',
+    departmentId: '',
+    accessCode: 'divya',
+    identifiers: ['divya'],
+  },
 ];
 
 export const teamTasks = [
