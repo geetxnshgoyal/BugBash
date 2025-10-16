@@ -647,6 +647,7 @@
         </div>
         <div class="stats" id="statsRow"></div>
         <div class="nav-actions">
+          <button class="btn-ghost" id="announcementBtn" hidden>Announcement</button>
           <button class="btn-ghost" id="refreshBtn">Refresh</button>
           <button class="btn-ghost" id="logoutBtn">Sign out</button>
         </div>
@@ -858,6 +859,35 @@
       </form>
     </div>
   </div>
+
+  <div class="modal-backdrop" id="announcementModal" hidden>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="announcementModalTitle">
+      <div class="modal-header">
+        <h3 id="announcementModalTitle">Broadcast Announcement</h3>
+        <button type="button" class="modal-close" data-close-modal="announcementModal" aria-label="Close announcement modal">×</button>
+      </div>
+      <div class="modal-highlight">
+        <span>Tagging <!channel> to notify everyone.</span>
+      </div>
+      <form id="announcementForm" class="modal-body">
+        <label>
+          Target channel
+          <select id="announcementChannel"></select>
+        </label>
+        <label>
+          Message
+          <textarea id="announcementMessage" maxlength="400" placeholder="Share meeting links, key updates, or callouts."></textarea>
+          <span class="modal-hint">Announcement tags <!channel> so everyone is notified.</span>
+        </label>
+        <p class="modal-status" id="announcementStatus" hidden></p>
+        <hr class="modal-divider">
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" id="announcementCancel">Cancel</button>
+          <button type="submit" id="announcementSubmit">Send announcement</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1019,6 +1049,7 @@
   let updateSubmitting = false;
   let reminderSubmitting = false;
   let editTaskSubmitting = false;
+  let announcementSubmitting = false;
 
   const els = {
     loginPanel: document.getElementById('loginPanel'),
@@ -1085,7 +1116,15 @@
     reminderCancel: document.getElementById('reminderCancel'),
     reminderSubmit: document.getElementById('reminderSubmit'),
     reminderTaskTitle: document.getElementById('reminderTaskTitle'),
-    reminderTaskMeta: document.getElementById('reminderTaskMeta')
+    reminderTaskMeta: document.getElementById('reminderTaskMeta'),
+    announcementBtn: document.getElementById('announcementBtn'),
+    announcementModal: document.getElementById('announcementModal'),
+    announcementForm: document.getElementById('announcementForm'),
+    announcementChannel: document.getElementById('announcementChannel'),
+    announcementMessage: document.getElementById('announcementMessage'),
+    announcementStatus: document.getElementById('announcementStatus'),
+    announcementCancel: document.getElementById('announcementCancel'),
+    announcementSubmit: document.getElementById('announcementSubmit')
   };
 
   const identifierInput = els.loginForm?.querySelector('input[name="identifier"]');
@@ -1636,6 +1675,36 @@
         select.value = selectedMemberId;
       }
     }
+  };
+
+  const populateAnnouncementChannels = () => {
+    const select = els.announcementChannel;
+    if (!select) return;
+    select.innerHTML = '';
+    const options = [];
+    options.push({ value: 'global', label: 'All teams (default announcement channel)' });
+    (state.departments || []).forEach((dept) => {
+      if (!dept || !dept.id) return;
+      const channel = dept.channels && typeof dept.channels === 'object' ? dept.channels.slack : '';
+      if (!channel || !channel.trim()) return;
+      options.push({ value: `department:${dept.id}`, label: `${dept.name || dept.id} channel` });
+    });
+    if (!options.length) {
+      const option = document.createElement('option');
+      option.disabled = true;
+      option.textContent = 'No announcement channels available.';
+      select.appendChild(option);
+      select.disabled = true;
+      return;
+    }
+    options.forEach((opt) => {
+      const option = document.createElement('option');
+      option.value = opt.value;
+      option.textContent = opt.label;
+      select.appendChild(option);
+    });
+    select.value = options[0].value;
+    select.disabled = false;
   };
 
   const populateUpdateStatusOptions = () => {
@@ -2206,16 +2275,29 @@ function closeUpdateModalSafe() {
   closeModal(els.updateModal);
 }
 
-function closeReminderModal() {
-  activeReminderTaskId = null;
-  reminderSubmitting = false;
-  setModalMessage(els.reminderStatus, '');
-  if (els.reminderSubmit) {
-    els.reminderSubmit.disabled = false;
-    els.reminderSubmit.textContent = 'Send reminder';
+  function closeReminderModal() {
+    activeReminderTaskId = null;
+    reminderSubmitting = false;
+    setModalMessage(els.reminderStatus, '');
+    if (els.reminderSubmit) {
+      els.reminderSubmit.disabled = false;
+      els.reminderSubmit.textContent = 'Send reminder';
+    }
+    closeModal(els.reminderModal);
   }
-  closeModal(els.reminderModal);
-}
+
+  const closeAnnouncementModal = () => {
+    announcementSubmitting = false;
+    setModalMessage(els.announcementStatus, '');
+    if (els.announcementSubmit) {
+      els.announcementSubmit.disabled = false;
+      els.announcementSubmit.textContent = 'Send announcement';
+    }
+    if (els.announcementMessage) {
+      els.announcementMessage.value = '';
+    }
+    closeModal(els.announcementModal);
+  };
 
 const updateReminderRecipientUI = () => {
   const scope = els.reminderRecipient?.value || 'owners';
@@ -2396,6 +2478,72 @@ const updateReminderRecipientUI = () => {
     }
   };
 
+  const openAnnouncementModal = () => {
+    if (!els.announcementModal) return;
+    populateAnnouncementChannels();
+    setModalMessage(els.announcementStatus, '');
+    if (els.announcementMessage) {
+      els.announcementMessage.value = '';
+    }
+    if (els.announcementSubmit) {
+      els.announcementSubmit.disabled = false;
+      els.announcementSubmit.textContent = 'Send announcement';
+    }
+    openModal(els.announcementModal);
+    requestAnimationFrame(() => {
+      els.announcementMessage?.focus();
+    });
+  };
+
+  const submitAnnouncement = async (event) => {
+    event.preventDefault();
+    if (announcementSubmitting) return;
+    const message = (els.announcementMessage?.value || '').trim();
+    if (!message) {
+      setModalMessage(els.announcementStatus, 'Write a message before broadcasting.', 'error');
+      els.announcementMessage?.focus();
+      return;
+    }
+    const channelValue = els.announcementChannel?.value || 'global';
+    const payload = { message };
+    if (channelValue.startsWith('department:')) {
+      payload.scope = 'department';
+      payload.departmentId = channelValue.slice('department:'.length);
+    } else {
+      payload.scope = 'global';
+    }
+    announcementSubmitting = true;
+    if (els.announcementSubmit) {
+      els.announcementSubmit.disabled = true;
+      els.announcementSubmit.textContent = 'Sending...';
+    }
+    try {
+      await fetchJSON('/api/team/announcements', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      closeAnnouncementModal();
+      setStatus('Announcement sent.', 'success');
+    } catch (err) {
+      console.error(err);
+      const errorCode = err.payload?.error || 'announcement_failed';
+      const messages = {
+        missing_message: 'Write a message before broadcasting.',
+        invalid_department: 'Select a valid department channel.',
+        missing_channel: 'Slack channel not configured for that department.',
+        forbidden: 'Only mentors and leads can send announcements.',
+        announcement_failed: 'Could not send announcement.'
+      };
+      setModalMessage(els.announcementStatus, messages[errorCode] || 'Could not send announcement.', 'error');
+    } finally {
+      announcementSubmitting = false;
+      if (els.announcementSubmit) {
+        els.announcementSubmit.disabled = false;
+        els.announcementSubmit.textContent = 'Send announcement';
+      }
+    }
+  };
+
   const refreshEvents = async () => {
     const response = await fetchJSON('/api/team/events');
     let events = Array.isArray(response.events) ? [...response.events] : [];
@@ -2443,15 +2591,17 @@ const updateReminderRecipientUI = () => {
     populateTaskModalOwners();
     populateReminderMembers(null, '', false);
     updateReminderRecipientUI();
+    populateAnnouncementChannels();
     els.myTasksToggle.checked = state.filters.showMine;
     const memberRole = getMemberRole();
-    if (['lead', 'mentor', 'member'].includes(memberRole)) {
-      els.newTaskBtn.hidden = false;
-    } else {
-      els.newTaskBtn.hidden = true;
+    if (els.newTaskBtn) {
+      els.newTaskBtn.hidden = !['lead', 'mentor', 'member'].includes(memberRole);
+    }
+    if (els.announcementBtn) {
+      els.announcementBtn.hidden = !['lead', 'mentor'].includes(memberRole);
     }
   };
-  [els.taskModal, els.updateModal, els.editTaskModal, els.reminderModal].forEach(registerModalBackdrop);
+  [els.taskModal, els.updateModal, els.editTaskModal, els.reminderModal, els.announcementModal].forEach(registerModalBackdrop);
   document.querySelectorAll('[data-close-modal]').forEach((button) => {
     button.addEventListener('click', () => {
       const targetId = button.dataset.closeModal;
@@ -2465,6 +2615,8 @@ const updateReminderRecipientUI = () => {
         closeEditTaskModal();
       } else if (targetId === 'reminderModal') {
         closeReminderModal();
+      } else if (targetId === 'announcementModal') {
+        closeAnnouncementModal();
       } else {
         closeModal(modal);
       }
@@ -2813,8 +2965,22 @@ const updateReminderRecipientUI = () => {
       populateReminderMembers(task, defaultMember, isMemberScope);
     });
   }
+  if (els.announcementBtn) {
+    els.announcementBtn.addEventListener('click', openAnnouncementModal);
+  }
+  if (els.announcementForm) {
+    els.announcementForm.addEventListener('submit', submitAnnouncement);
+  }
+  if (els.announcementCancel) {
+    els.announcementCancel.addEventListener('click', closeAnnouncementModal);
+  }
+
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
+    if (isModalOpen(els.announcementModal)) {
+      closeAnnouncementModal();
+      return;
+    }
     if (isModalOpen(els.reminderModal)) {
       closeReminderModal();
       return;

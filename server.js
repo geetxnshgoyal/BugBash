@@ -178,6 +178,21 @@ const formatSlackDate = (value) => {
   return slackEscape(String(value));
 };
 
+const buildSlackTimestamp = (input) => {
+  const date = input instanceof Date ? input : new Date(input || Date.now());
+  const iso = date.toISOString();
+  const unix = Math.floor(date.getTime() / 1000);
+  const localLabel = date.toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  });
+  return {
+    iso,
+    display: `<!date^${unix}^{date_short_pretty} at {time}|${localLabel}>`
+  };
+};
+
 const getSlackChannelForDepartment = (department) => {
   if (department && typeof department === 'object') {
     const departmentChannel = department.channels?.slack;
@@ -2153,15 +2168,8 @@ app.post('/api/team/tasks/:id/reminders', teamAuth, async (req, res) => {
     const statusLabel = formatSlackLabel(task.status || 'todo') || 'To do';
     const customLine = message ? slackEscape(message) : `Please take the next step on *${slackEscape(taskTitle)}*.`;
     const departmentName = department?.name || task.departmentName || task.departmentId || 'General';
-    const sentAt = new Date();
-    const sentAtIso = sentAt.toISOString();
-    const sentAtUnix = Math.floor(sentAt.getTime() / 1000);
-    const sentAtLabel = sentAt.toLocaleString('en-IN', {
-      timeZone: 'Asia/Kolkata',
-      dateStyle: 'medium',
-      timeStyle: 'short'
-    });
-    const sentAtDisplay = `<!date^${sentAtUnix}^{date_short_pretty} at {time}|${sentAtLabel}>`;
+    const { iso: sentAtIso, display: sentAtDisplayRaw } = buildSlackTimestamp();
+    const sentAtDisplay = `${sentAtDisplayRaw} (IST)`;
     const safeTaskTitle = slackEscape(taskTitle);
 
     notifySlack({
@@ -2197,6 +2205,73 @@ ${customLine}`
     res.status(201).json({ ok: true });
   } catch (err) {
     console.error('Failed to send reminder', err);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+app.post('/api/team/announcements', teamAuth, async (req, res) => {
+  try {
+    if (!isLeadOrMentor(req.teamMember)) {
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+    }
+    const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+    if (!message) {
+      return res.status(400).json({ ok: false, error: 'missing_message' });
+    }
+
+    const scope = typeof req.body?.scope === 'string' ? req.body.scope.trim().toLowerCase() : 'global';
+    const departments = await fetchTeamDepartments();
+    const departmentMap = new Map(departments.map((dept) => [dept.id, dept]));
+
+    let channel = SLACK_FALLBACK_CHANNEL;
+    let audienceLabel = 'All teams';
+
+    if (scope === 'department') {
+      const departmentId = typeof req.body?.departmentId === 'string' ? req.body.departmentId.trim() : '';
+      if (!departmentId || !departmentMap.has(departmentId)) {
+        return res.status(400).json({ ok: false, error: 'invalid_department' });
+      }
+      const department = departmentMap.get(departmentId);
+      const departmentChannel = department?.channels?.slack;
+      if (!departmentChannel) {
+        return res.status(400).json({ ok: false, error: 'missing_channel' });
+      }
+      channel = departmentChannel;
+      audienceLabel = department?.name || departmentId;
+    } else if (!channel) {
+      return res.status(400).json({ ok: false, error: 'missing_channel' });
+    }
+
+    const { iso: sentAtIso, display: sentAtDisplayRaw } = buildSlackTimestamp();
+    const sentAtDisplay = `${sentAtDisplayRaw} (IST)`;
+    const posterMention = formatSlackMention(req.teamMember);
+    const safeMessage = slackEscape(message);
+
+    notifySlack({
+      text: `<!channel> Announcement • ${sentAtIso}`,
+      channel,
+      blocks: [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `<!channel>\n${safeMessage}`
+          }
+        },
+        {
+          type: 'context',
+          elements: [
+            { type: 'mrkdwn', text: `*Audience:* ${slackEscape(audienceLabel)}` },
+            { type: 'mrkdwn', text: `*Sent:* ${sentAtDisplay}` },
+            { type: 'mrkdwn', text: `Posted by ${posterMention}` }
+          ]
+        }
+      ]
+    });
+
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    console.error('Failed to send announcement', err);
     res.status(500).json({ ok: false, error: 'server_error' });
   }
 });

@@ -9,7 +9,7 @@ Node/Express app that serves the Bug Bash marketing pages and exposes the APIs p
 - Optional Google reCAPTCHA v3 enforcement to limit automated submissions.
 - Nodemailer integration for confirmation emails triggered after successful registration.
 - Admin APIs protected by a static admin token and short-lived in-memory sessions.
-- Organizer-only team dashboard (`/team`) for assigning tasks, logging progress, sending Slack reminders, and tracking upcoming events.
+- Organizer-only team dashboard (`/team`) for assigning tasks, logging progress, sending Slack reminders, broadcasting <!channel> announcements, and tracking upcoming events.
 - Task claiming workflow so organizers can self-assign work with department-specific highlights.
 
 ## Prerequisites
@@ -87,6 +87,7 @@ The admin page is served from http://localhost:3000/admin. Sign in with the `ADM
 | `PATCH` | `/api/team/tasks/:id` | Team session (lead/owner) | Updates task status, owners, due date, or checklist. |
 | `POST` | `/api/team/tasks/:id/updates` | Team session (owner/lead) | Appends a progress note and optional status change. |
 | `POST` | `/api/team/tasks/:id/reminders` | Team session (lead/mentor) | Sends a Slack reminder to task assignees or a specific teammate. |
+| `POST` | `/api/team/announcements` | Team session (lead/mentor) | Broadcasts a <!channel> announcement to Slack. |
 | `GET` | `/api/team/tasks/:id/updates` | Team session | Fetches the chronological update log for a task. |
 | `POST` | `/api/team/tasks/:id/claim` | Team session (owner/lead) | Self-assign or release a task; leads can override existing assignees. |
 | `GET` | `/api/team/events` | Team session | Lists upcoming events/meetings with host info. |
