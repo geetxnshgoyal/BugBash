@@ -80,7 +80,8 @@ export const teamMembers = [
     role: 'lead',
     departmentId: 'dept-logistics',
     accessCode: 'anant@2025',
-    identifiers: ['anant']
+    identifiers: ['anant'],
+    slack_user_id: 'U09DYNTPVND'
   },
   {
     id: 'mem-atul',
@@ -100,7 +101,8 @@ export const teamMembers = [
     role: 'lead',
     departmentId: 'dept-media',
     accessCode: 'raaj123',
-    identifiers: ['raaj']
+    identifiers: ['raaj'],
+    slack_user_id: 'U09DN7N1600'
   },
   {
     id: 'mem-utsav',
@@ -110,7 +112,8 @@ export const teamMembers = [
     role: 'lead',
     departmentId: 'dept-hospitality',
     accessCode: 'utsav2025',
-    identifiers: ['utsav']
+    identifiers: ['utsav'],
+    slack_user_id: 'U09D1UWHPKN'
   },
   {
     id: 'mem-sidharth',
@@ -120,7 +123,8 @@ export const teamMembers = [
     role: 'lead',
     departmentId: 'dept-design',
     accessCode: 'sidharth123',
-    identifiers: ['sidharth']
+    identifiers: ['sidharth'],
+    slack_user_id: 'U09CH9UL66B'
   }
   ,
   {
@@ -131,7 +135,8 @@ export const teamMembers = [
     role: 'member',
     departmentId: 'dept-marketing',
     accessCode: 'aksh2025',
-    identifiers: ['aksh']
+    identifiers: ['aksh'],
+    slack_user_id: 'U09DHQ5J2R2'
   },
   {
     id: 'mem-ravi',
@@ -141,7 +146,8 @@ export const teamMembers = [
     role: 'member',
     departmentId: 'dept-marketing',
     accessCode: 'ravi@789',
-    identifiers: ['ravi']
+    identifiers: ['ravi'],
+    slack_user_id: 'U09DLKNR6BF'
   },
   {
     id: 'mem-saurabh',
@@ -161,7 +167,8 @@ export const teamMembers = [
     role: 'member',
     departmentId: 'dept-logistics',
     accessCode: 'bibhukesh01',
-    identifiers: ['bibhukesh']
+    identifiers: ['bibhukesh'],
+    slack_user_id: 'U09CXV99Y74'
   },
   {
     id: 'mem-prateek',
@@ -171,7 +178,8 @@ export const teamMembers = [
     role: 'member',
     departmentId: 'dept-hospitality',
     accessCode: 'prateek@2025',
-    identifiers: ['prateek']
+    identifiers: ['prateek'],
+    slack_user_id: 'U09D2FWSG2J'
   },
   {
     id: 'mem-vani',
@@ -181,7 +189,8 @@ export const teamMembers = [
     role: 'member',
     departmentId: 'dept-design',
     accessCode: 'vani123!',
-    identifiers: ['vani']
+    identifiers: ['vani'],
+    slack_user_id: 'U09DN7NCHLG'
   },
   {
     id: 'mem-harikrishna',
@@ -191,7 +200,8 @@ export const teamMembers = [
     role: 'member',
     departmentId: 'dept-logistics',
     accessCode: 'hari2025!',
-    identifiers: ['harikrishna', 'hari']
+    identifiers: ['harikrishna', 'hari'],
+    slack_user_id: 'U09DA7L30H0'
   },
   {
     id: 'mem-saubhagya',
@@ -201,7 +211,8 @@ export const teamMembers = [
     role: 'member',
     departmentId: 'dept-design',
     accessCode: 'saubhagya1!',
-    identifiers: ['saubhagya']
+    identifiers: ['saubhagya'],
+    slack_user_id: 'U09CXV4AJGJ'
   },
   {
     id: 'mem-sahitya',
@@ -211,7 +222,8 @@ export const teamMembers = [
     role: 'member',
     departmentId: 'dept-design',
     accessCode: 'sahitya@22',
-    identifiers: ['sahitya']
+    identifiers: ['sahitya'],
+    slack_user_id: 'U09D91X3JKY'
   },
   {
     id: 'mem-abhay',
@@ -221,7 +233,8 @@ export const teamMembers = [
     role: 'member',
     departmentId: 'dept-sponsor',
     accessCode: 'abhay@2025',
-    identifiers: ['abhay']
+    identifiers: ['abhay'],
+    slack_user_id: 'U09DANF9AFK'
   },
   {
     id: 'mem-sadiqua',
@@ -231,7 +244,8 @@ export const teamMembers = [
     role: 'member',
     departmentId: '',
     accessCode: 'sadiqua@23',
-    identifiers: ['sadiqua']
+    identifiers: ['sadiqua'],
+    slack_user_id: 'U09DN7N4HK2'
   },
   {
     id: 'mem-rachana',
@@ -241,7 +255,8 @@ export const teamMembers = [
     role: 'member',
     departmentId: 'dept-hospitality',
     accessCode: 'rachana@01',
-    identifiers: ['rachana']
+    identifiers: ['rachana'],
+    slack_user_id: 'U09DN7N7NHW'
   },
   {
     id: 'mem-angela',
@@ -251,7 +266,8 @@ export const teamMembers = [
     role: 'Mentor',
     departmentId: '',
     accessCode: 'angela1@',
-    identifiers: ['angela']
+    identifiers: ['angela'],
+    slack_user_id: 'U09CJAPKS23'
   },
   {
     id: 'mem-vivaan',
@@ -261,17 +277,19 @@ export const teamMembers = [
     role: 'Mentor',
     departmentId: '',
     accessCode: 'vivaan@1!',
-    identifiers: ['vivaan']
+    identifiers: ['vivaan'],
+    slack_user_id: 'U09D0C201L5'
   },
     {
     id: 'mem-geetansh',
-    displayName: 'geetansh',
+    displayName: 'Geetansh',
     loginId: 'geetansh',
     email: '',
-    role: 'Mentor',
+    role: 'Lead',
     departmentId: '',
     accessCode: 'geetansh',
-    identifiers: ['geetansh']
+    identifiers: ['geetansh'],
+    slack_user_id: 'U09CWM0Q1V0'
   },
   {
     id: 'mem-abhijit',
@@ -281,7 +299,8 @@ export const teamMembers = [
     role: 'Member',
     departmentId: '',
     accessCode: 'abhijit10@',
-    identifiers: ['abhijit']
+    identifiers: ['abhijit'],
+    slack_user_id: 'U09DQMS3WLQ'
   },
     {
     id: 'mem-bikash',
@@ -291,7 +310,8 @@ export const teamMembers = [
     role: 'Member',
     departmentId: 'dept-sponsor',
     accessCode: 'bikash10@',
-    identifiers: ['bikash']
+    identifiers: ['bikash'],
+    slack_user_id: 'U09DN7MPNJC'
   },
     {
     id: 'mem-harshit',
@@ -301,7 +321,19 @@ export const teamMembers = [
     role: 'Member',
     departmentId: 'dept-tech',
     accessCode: 'harshit10@',
-    identifiers: ['harshit']
+    identifiers: ['harshit'],
+    slack_user_id: 'U09CT0ZURMZ'
+  },
+  {
+    id: 'mem-ishika',
+    displayName: 'Ishika',
+    loginId: 'ishika',
+    email: '',
+    role: 'Member',
+    departmentId: '',
+    accessCode: 'ishika10@',
+    identifiers: ['ishika'],
+    slack_user_id: 'U09DX7A8PGU'
   },
 ];
 

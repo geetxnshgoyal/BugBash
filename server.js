@@ -38,6 +38,8 @@ const rawGithubTokenSecret =
   process.env.SESSION_SECRET?.trim() ||
   (GITHUB_CLIENT_SECRET ? `${GITHUB_CLIENT_SECRET}:${process.env.GITHUB_CLIENT_ID || ''}` : '') ||
   ADMIN_TOKEN;
+const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL?.trim() || '';
+const SLACK_FALLBACK_CHANNEL = process.env.SLACK_FALLBACK_CHANNEL?.trim() || '';
 const GITHUB_TOKEN_SECRET = rawGithubTokenSecret?.trim() || '';
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}$/;
 const INDIAN_MOBILE_REGEX = /^[6-9][0-9]{9}$/;
@@ -140,6 +142,106 @@ const toIsoString = (value) => {
     }
   }
   return '';
+};
+
+const slackEscape = (value = '') =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+const formatSlackLabel = (value = '') => {
+  const normalized = String(value || '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!normalized) return '';
+  return slackEscape(normalized.replace(/\b\w/g, (char) => char.toUpperCase()));
+};
+
+const formatSlackDate = (value) => {
+  if (!value) return slackEscape('No due date');
+  try {
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) {
+      return slackEscape(
+        date.toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric'
+        })
+      );
+    }
+  } catch {
+    // ignore formatting errors
+  }
+  return slackEscape(String(value));
+};
+
+const getSlackChannelForDepartment = (department) => {
+  if (department && typeof department === 'object') {
+    const departmentChannel = department.channels?.slack;
+    if (typeof departmentChannel === 'string' && departmentChannel.trim()) {
+      return departmentChannel.trim();
+    }
+  }
+  return SLACK_FALLBACK_CHANNEL;
+};
+
+const notifySlack = async ({ text, channel, blocks }) => {
+  if (!SLACK_WEBHOOK_URL) return;
+  const payload = {
+    text: text || ''
+  };
+  if (channel) {
+    payload.channel = channel;
+  }
+  if (Array.isArray(blocks) && blocks.length) {
+    payload.blocks = blocks;
+  }
+  try {
+    const response = await fetch(SLACK_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+      const responseText = await response.text().catch(() => '');
+      console.error('Slack webhook error', response.status, responseText);
+    }
+  } catch (err) {
+    console.error('Failed to dispatch Slack notification', err);
+  }
+};
+
+const getMemberDisplayName = (member) => {
+  if (!member || typeof member !== 'object') return 'A teammate';
+  const candidates = [member.displayName, member.name, member.loginId, member.id, member.email];
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+  return 'A teammate';
+};
+
+const safeSlackUserId = (value) => {
+  if (typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  return /^[A-Za-z0-9]+$/.test(trimmed) ? trimmed : '';
+};
+
+const formatSlackMention = (member) => {
+  if (!member || typeof member !== 'object') return slackEscape('A teammate');
+  const slackId =
+    safeSlackUserId(member.slackUserId) ||
+    safeSlackUserId(member.raw?.slack_user_id) ||
+    '';
+  if (slackId) {
+    return `<@${slackId}>`;
+  }
+  return slackEscape(getMemberDisplayName(member));
 };
 
 
@@ -401,7 +503,13 @@ const sanitizeTeamMember = (member) => {
     role: member.role || '',
     roleNormalized: member.roleNormalized || normalizeRole(member.role),
     loginId: member.loginId || '',
-    departmentId: member.departmentId || ''
+    departmentId: member.departmentId || '',
+    slackUserId:
+      typeof member.slackUserId === 'string' && member.slackUserId.trim()
+        ? member.slackUserId.trim()
+        : typeof member.raw?.slack_user_id === 'string' && member.raw.slack_user_id.trim()
+        ? member.raw.slack_user_id.trim()
+        : ''
   };
 };
 
@@ -745,6 +853,12 @@ const mapTeamMemberDoc = (doc) => {
     roleNormalized: normalizedRole,
     departmentId: data.department_id || '',
     email: data.email || '',
+    slackUserId:
+      typeof data.slack_user_id === 'string'
+        ? data.slack_user_id.trim()
+        : typeof data.slackUserId === 'string'
+        ? data.slackUserId.trim()
+        : '',
     active: data.active !== false,
     identifiers,
     raw: data
@@ -1475,6 +1589,7 @@ app.get('/api/team/me', teamAuth, async (req, res) => {
       member: sanitizeTeamMember(member || req.teamMember),
       department,
       departments: departments.map(sanitizeTeamDepartment).filter(Boolean),
+      members: members.map(sanitizeTeamMember).filter(Boolean),
       stats: {
         myOpenTasks: myTasks.filter((task) => task.status !== 'done').length,
         myBlockedTasks: myTasks.filter((task) => task.status === 'blocked').length,
@@ -1595,6 +1710,8 @@ app.post('/api/team/tasks/:id/updates', teamAuth, async (req, res) => {
     if (!taskSnap.exists) {
       return res.status(404).json({ ok: false, error: 'task_not_found' });
     }
+    const departmentMap = new Map(departments.map((dept) => [dept.id, dept]));
+    const departmentColors = buildDepartmentColorMap(departments);
     const task = mapTeamTaskDoc(taskSnap);
     if (!canMemberViewTask(task, req.teamMember)) {
       return res.status(403).json({ ok: false, error: 'forbidden' });
@@ -1642,8 +1759,7 @@ app.post('/api/team/tasks/:id/updates', teamAuth, async (req, res) => {
     const [updatedTaskSnap, updateSnap] = await Promise.all([taskRef.get(), updateRef.get()]);
     const updatedTask = mapTeamTaskDoc(updatedTaskSnap);
     const updateRecord = mapTeamTaskUpdateDoc(updateSnap);
-    const departmentMap = new Map(departments.map((dept) => [dept.id, dept]));
-    const departmentColors = buildDepartmentColorMap(departments);
+    const department = departmentMap.get(task.departmentId);
     const context = {
       departmentMap,
       memberMap,
@@ -1652,11 +1768,56 @@ app.post('/api/team/tasks/:id/updates', teamAuth, async (req, res) => {
       currentMemberRole: req.teamMember.role || '',
       currentMemberRoleNormalized: req.teamMember.roleNormalized || normalizeRole(req.teamMember.role)
     };
+    const sanitizedUpdate = sanitizeTeamTaskUpdate(updateRecord, memberMap);
+    const sanitizedTask = sanitizeTeamTask(updatedTask, context);
     res.status(201).json({
       ok: true,
-      update: sanitizeTeamTaskUpdate(updateRecord, memberMap),
-      task: sanitizeTeamTask(updatedTask, context)
+      update: sanitizedUpdate,
+      task: sanitizedTask
     });
+    if (sanitizedTask && sanitizedUpdate) {
+      const updaterMember = sanitizedUpdate.member || req.teamMember;
+      const updaterNameRaw = getMemberDisplayName(updaterMember);
+      const updaterMention = formatSlackMention(updaterMember);
+      const noteTextRaw = sanitizedUpdate.note || '';
+      const notePreviewFull = noteTextRaw.replace(/\s+/g, ' ').trim();
+      const notePreview =
+        notePreviewFull.length > 180 ? `${notePreviewFull.slice(0, 177)}…` : notePreviewFull;
+      const noteText = noteTextRaw ? slackEscape(noteTextRaw) : '_Update submitted._';
+      const departmentNameRaw = department?.name || sanitizedTask.departmentName || 'General';
+      const departmentName = slackEscape(departmentNameRaw);
+      const statusLabel =
+        formatSlackLabel(sanitizedUpdate.statusAfter || '') ||
+        formatSlackLabel(sanitizedTask.status || '');
+      const taskTitleRaw = sanitizedTask.title || '';
+      const taskTitle = slackEscape(taskTitleRaw);
+      const contextElements = [
+        { type: 'mrkdwn', text: `*Team:* ${departmentName}` }
+      ];
+      if (statusLabel) {
+        contextElements.push({ type: 'mrkdwn', text: `*Status:* ${statusLabel}` });
+      }
+      contextElements.push({ type: 'mrkdwn', text: `From ${updaterMention}` });
+      notifySlack({
+        text: notePreview
+          ? `✏️ ${updaterNameRaw} updated "${taskTitleRaw}": ${notePreview}`
+          : `✏️ ${updaterNameRaw} updated "${taskTitleRaw}".`,
+        channel: getSlackChannelForDepartment(department),
+        blocks: [
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `*${taskTitle}*\n${noteText}`
+            }
+          },
+          {
+            type: 'context',
+            elements: contextElements
+          }
+        ]
+      });
+    }
   } catch (err) {
     console.error('Failed to append task update', err);
     res.status(500).json({ ok: false, error: 'server_error' });
@@ -1707,7 +1868,7 @@ app.post('/api/team/tasks', teamAuth, async (req, res) => {
     const nowIso = new Date().toISOString();
     const dueAtIso = dueAt ? toIsoString(new Date(dueAt)) || '' : '';
     const taskRef = teamTasksCollection.doc();
-    const restrictedRoles = isElevated ? [] : ['lead', 'mentor'];
+    const restrictedRoles = [];
     const allowedMemberIds = [];
     await taskRef.set({
       title: trimmedTitle,
@@ -1737,10 +1898,55 @@ app.post('/api/team/tasks', teamAuth, async (req, res) => {
       currentMemberRole: requester.role || '',
       currentMemberRoleNormalized: requester.roleNormalized || normalizeRole(requester.role)
     };
+    const sanitizedTask = sanitizeTeamTask(createdTask, context);
     res.status(201).json({
       ok: true,
-      task: sanitizeTeamTask(createdTask, context)
+      task: sanitizedTask
     });
+    if (sanitizedTask) {
+      const departmentNameRaw = department?.name || sanitizedTask.departmentName || 'General';
+      const departmentName = slackEscape(departmentNameRaw);
+      const ownersMentions =
+        Array.isArray(sanitizedTask.owners) && sanitizedTask.owners.length
+          ? sanitizedTask.owners.map((owner) => formatSlackMention(owner)).join(', ')
+          : slackEscape('Unassigned');
+      const dueText = formatSlackDate(sanitizedTask.dueAt);
+      const priorityLabel =
+        formatSlackLabel(sanitizedTask.priority || '') || slackEscape('Medium');
+      const descriptionText = sanitizedTask.description
+        ? slackEscape(sanitizedTask.description)
+        : '_No description provided._';
+      const creatorNameRaw = getMemberDisplayName(requester);
+      const creatorMention = formatSlackMention(requester);
+      const taskTitleRaw = sanitizedTask.title || '';
+      const taskTitle = slackEscape(taskTitleRaw);
+      notifySlack({
+        text: `🆕 ${creatorNameRaw} created "${taskTitleRaw}" in ${departmentNameRaw}.`,
+        channel: getSlackChannelForDepartment(department),
+        blocks: [
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `*${taskTitle}*\n${descriptionText}`
+            }
+          },
+          {
+            type: 'context',
+            elements: [
+              { type: 'mrkdwn', text: `*Team:* ${departmentName}` },
+              { type: 'mrkdwn', text: `*Priority:* ${priorityLabel}` },
+              { type: 'mrkdwn', text: `*Due:* ${dueText}` },
+              { type: 'mrkdwn', text: `*Owners:* ${ownersMentions}` }
+            ]
+          },
+          {
+            type: 'context',
+            elements: [{ type: 'mrkdwn', text: `Created by ${creatorMention}` }]
+          }
+        ]
+      });
+    }
   } catch (err) {
     console.error('Failed to create team task', err);
     res.status(500).json({ ok: false, error: 'server_error' });
@@ -1795,6 +2001,15 @@ app.patch('/api/team/tasks/:id', teamAuth, async (req, res) => {
       }
       updates.owner_ids = normalizedOwnerIds;
     }
+    if (isElevated && typeof req.body?.departmentId === 'string') {
+      const trimmedDepartment = req.body.departmentId.trim();
+      if (trimmedDepartment) {
+        if (!departmentMap.has(trimmedDepartment)) {
+          return res.status(400).json({ ok: false, error: 'invalid_department' });
+        }
+        updates.department_id = trimmedDepartment;
+      }
+    }
     if (isElevated && typeof req.body?.priority === 'string' && req.body.priority.trim()) {
       updates.priority = req.body.priority.trim();
     }
@@ -1821,8 +2036,6 @@ app.patch('/api/team/tasks/:id', teamAuth, async (req, res) => {
       updates.description = req.body.description.trim();
     }
     if (!Object.keys(updates).length) {
-      const departmentMap = new Map(departments.map((dept) => [dept.id, dept]));
-      const departmentColors = buildDepartmentColorMap(departments);
       const context = {
         departmentMap,
         memberMap,
@@ -1839,8 +2052,6 @@ app.patch('/api/team/tasks/:id', teamAuth, async (req, res) => {
     await taskRef.update(updates);
     const updatedTaskSnap = await taskRef.get();
     const updatedTask = mapTeamTaskDoc(updatedTaskSnap);
-    const departmentMap = new Map(departments.map((dept) => [dept.id, dept]));
-    const departmentColors = buildDepartmentColorMap(departments);
     const context = {
       departmentMap,
       memberMap,
@@ -1882,6 +2093,102 @@ app.delete('/api/team/tasks/:id', teamAuth, async (req, res) => {
     res.json({ ok: true, deleted: true });
   } catch (err) {
     console.error('Failed to delete team task', err);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+app.post('/api/team/tasks/:id/reminders', teamAuth, async (req, res) => {
+  const taskId = req.params.id?.trim();
+  if (!taskId) {
+    return res.status(400).json({ ok: false, error: 'missing_task_id' });
+  }
+  try {
+    const [taskSnap, departments, { map: memberMap }] = await Promise.all([
+      teamTasksCollection.doc(taskId).get(),
+      fetchTeamDepartments(),
+      fetchTeamMembersMap()
+    ]);
+    if (!taskSnap.exists) {
+      return res.status(404).json({ ok: false, error: 'task_not_found' });
+    }
+    const task = mapTeamTaskDoc(taskSnap);
+    if (!canMemberViewTask(task, req.teamMember)) {
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+    }
+    if (!isLeadOrMentor(req.teamMember)) {
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+    }
+    const departmentMap = new Map(departments.map((dept) => [dept.id, dept]));
+    const department = departmentMap.get(task.departmentId);
+    const scope = typeof req.body?.scope === 'string' ? req.body.scope.trim().toLowerCase() : 'owners';
+    const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+    let recipients = [];
+    if (scope === 'member') {
+      const memberId = typeof req.body?.memberId === 'string' ? req.body.memberId.trim() : '';
+      if (!memberId) {
+        return res.status(400).json({ ok: false, error: 'missing_member' });
+      }
+      const member = memberMap.get(memberId);
+      if (!member) {
+        return res.status(400).json({ ok: false, error: 'invalid_member' });
+      }
+      recipients = [member];
+    } else {
+      const ownerIds = Array.isArray(task.ownerIds) ? task.ownerIds : [];
+      recipients = ownerIds.map((ownerId) => memberMap.get(ownerId)).filter(Boolean);
+      if (!recipients.length) {
+        return res.status(400).json({ ok: false, error: 'no_assignees' });
+      }
+    }
+    const sanitizedRecipients = recipients.map((member) => sanitizeTeamMember(member)).filter(Boolean);
+    const mentionList = sanitizedRecipients.map((member) => formatSlackMention(member)).join(' ');
+    const textMentionList = sanitizedRecipients
+      .map((member) => {
+        const slackId = safeSlackUserId(member.slackUserId);
+        if (slackId) return `<@${slackId}>`;
+        return member.displayName || member.loginId || member.id || 'teammate';
+      })
+      .join(' ');
+    const requesterMention = formatSlackMention(req.teamMember);
+    const taskTitle = task.title || 'Untitled task';
+    const dueLabel = formatSlackDate(task.dueAt || '');
+    const priorityLabel = formatSlackLabel(task.priority || 'medium') || 'Medium';
+    const statusLabel = formatSlackLabel(task.status || 'todo') || 'To do';
+    const customLine = message ? slackEscape(message) : `Please take the next step on *${slackEscape(taskTitle)}*.`;
+    const departmentName = department?.name || task.departmentName || task.departmentId || 'General';
+
+    notifySlack({
+      text: `${textMentionList || 'Team'} — reminder for "${taskTitle}"`,
+      channel: getSlackChannelForDepartment(department),
+      blocks: [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `${mentionList || 'Team'}
+${customLine}`
+          }
+        },
+        {
+          type: 'context',
+          elements: [
+            { type: 'mrkdwn', text: `*Task:* ${slackEscape(taskTitle)}` },
+            { type: 'mrkdwn', text: `*Team:* ${slackEscape(departmentName)}` },
+            { type: 'mrkdwn', text: `*Status:* ${statusLabel}` },
+            { type: 'mrkdwn', text: `*Priority:* ${priorityLabel}` },
+            { type: 'mrkdwn', text: `*Due:* ${dueLabel}` }
+          ]
+        },
+        {
+          type: 'context',
+          elements: [{ type: 'mrkdwn', text: `Requested by ${requesterMention}` }]
+        }
+      ]
+    });
+
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    console.error('Failed to send reminder', err);
     res.status(500).json({ ok: false, error: 'server_error' });
   }
 });

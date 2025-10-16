@@ -98,6 +98,7 @@ const seedMembers = async (firestore) => {
         role: member.role || '',
         department_id: member.departmentId || '',
         email: member.email || '',
+        slack_user_id: member.slack_user_id || member.slackUserId || '',
         active: member.active !== false,
         created_at: admin.firestore.FieldValue.serverTimestamp()
       });

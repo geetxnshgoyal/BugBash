@@ -9,7 +9,7 @@ Node/Express app that serves the Bug Bash marketing pages and exposes the APIs p
 - Optional Google reCAPTCHA v3 enforcement to limit automated submissions.
 - Nodemailer integration for confirmation emails triggered after successful registration.
 - Admin APIs protected by a static admin token and short-lived in-memory sessions.
-- Organizer-only team dashboard (`/team`) for assigning tasks, logging progress, and tracking upcoming events.
+- Organizer-only team dashboard (`/team`) for assigning tasks, logging progress, sending Slack reminders, and tracking upcoming events.
 - Task claiming workflow so organizers can self-assign work with department-specific highlights.
 
 ## Prerequisites
@@ -56,6 +56,8 @@ The admin page is served from http://localhost:3000/admin. Sign in with the `ADM
 | `SITE_URL` | Base URL used by sitemap/robots responses (default `https://bugbash.me`). |
 | `GOOGLE_SITE_VERIFICATION` / `GOOGLE_SITE_VERIFICATION_HTML` | Surface Google Search Console verification tags. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `EMAIL_FROM` | Enable confirmation emails via nodemailer. |
+| `SLACK_WEBHOOK_URL` | Optional. Incoming webhook URL for Slack notifications whenever tasks are created or updated from the team dashboard. |
+| `SLACK_FALLBACK_CHANNEL` | Optional. Channel name or ID used when a department record does not specify its own Slack channel. |
 | `PORT` | HTTP port when running locally (default 3000). |
 | `TEAM_DASHBOARD_ENABLED` | Toggle the `/team` dashboard (`true` by default; set to `false` to disable). |
 | `TEAM_SESSION_TTL_MS` | Milliseconds before organizer dashboard sessions expire (default 4h). |
@@ -84,6 +86,7 @@ The admin page is served from http://localhost:3000/admin. Sign in with the `ADM
 | `POST` | `/api/team/tasks` | Team session (lead) | Creates a new task within the selected department. |
 | `PATCH` | `/api/team/tasks/:id` | Team session (lead/owner) | Updates task status, owners, due date, or checklist. |
 | `POST` | `/api/team/tasks/:id/updates` | Team session (owner/lead) | Appends a progress note and optional status change. |
+| `POST` | `/api/team/tasks/:id/reminders` | Team session (lead/mentor) | Sends a Slack reminder to task assignees or a specific teammate. |
 | `GET` | `/api/team/tasks/:id/updates` | Team session | Fetches the chronological update log for a task. |
 | `POST` | `/api/team/tasks/:id/claim` | Team session (owner/lead) | Self-assign or release a task; leads can override existing assignees. |
 | `GET` | `/api/team/events` | Team session | Lists upcoming events/meetings with host info. |
@@ -113,8 +116,8 @@ Use the provided CSV endpoint when you need a spreadsheet-friendly export. Each 
 
 ## Team Dashboard Data
 - Organizer-facing routes now read/write Firestore collections. Create the following documents before going live:
-  - `team_departments`: `{ name, description, lead_member_ids: string[], channels: { slack, whatsapp? } }`
-  - `team_members`: `{ display_name, login_id, access_code, role, department_id, active?, identifiers?: string[] }`
+- `team_departments`: `{ name, description, lead_member_ids: string[], channels: { slack, whatsapp? } }`
+- `team_members`: `{ display_name, login_id, access_code, role, department_id, slack_user_id?, active?, identifiers?: string[] }`
   - `team_tasks`: `{ title, description, department_id, owner_ids: string[], status, priority, due_at }` (fields like `last_update_*` and `updates_count` are maintained automatically).
   - `team_task_updates`: `{ task_id, member_id, note, status_after, created_at }`.
   - `team_events`: `{ title, description, start_at, end_at, location, link, hosts: string[], department_ids: string[] }`.

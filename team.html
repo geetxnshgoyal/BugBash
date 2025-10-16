@@ -90,6 +90,16 @@
     color:var(--white);
     font:inherit;
   }
+  input[type=date]{
+    color-scheme:dark;
+  }
+  input[type=date]::-webkit-calendar-picker-indicator{
+    filter:invert(1);
+    cursor:pointer;
+  }
+  input[type=date]::-webkit-calendar-picker-indicator:hover{
+    filter:invert(1) brightness(1.2);
+  }
   input:focus,select:focus,textarea:focus{
     outline:2px solid var(--accent);
     outline-offset:2px;
@@ -399,6 +409,10 @@
     min-height:96px;
     resize:vertical;
   }
+  .modal-body select[multiple]{
+    min-height:160px;
+    padding:10px 12px;
+  }
   .modal-meta{
     font-size:13px;
     color:var(--muted);
@@ -411,6 +425,12 @@
   }
   .modal-actions .btn-ghost{
     padding:10px 18px;
+  }
+  .modal-hint{
+    display:block;
+    margin-top:6px;
+    font-size:12px;
+    color:var(--muted);
   }
   .modal-status{
     margin:4px 0 0;
@@ -705,6 +725,11 @@
           Due date
           <input type="date" id="taskModalDue" name="due">
         </label>
+        <label id="taskModalOwnersWrapper" hidden>
+          Assign to teammates
+          <select id="taskModalOwners" name="ownerIds" multiple size="6"></select>
+          <span class="modal-hint">Hold Cmd (⌘) or Ctrl to select multiple teammates.</span>
+        </label>
         <p class="modal-status" id="taskModalStatus" hidden></p>
         <hr class="modal-divider">
         <div class="modal-actions">
@@ -741,6 +766,94 @@
         <div class="modal-actions">
           <button type="button" class="btn-ghost" id="updateModalCancel">Cancel</button>
           <button type="submit" id="updateModalSubmit">Save update</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="editTaskModal" hidden>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="editTaskModalTitle">
+      <div class="modal-header">
+        <h3 id="editTaskModalTitle">Edit Task</h3>
+        <button type="button" class="modal-close" data-close-modal="editTaskModal" aria-label="Close edit task modal">×</button>
+      </div>
+      <div class="modal-highlight">
+        <span id="editTaskMeta"></span>
+      </div>
+      <form id="editTaskForm" class="modal-body">
+        <label>
+          Task title
+          <input type="text" id="editTaskTitle" name="title" required maxlength="160" placeholder="Task name">
+        </label>
+        <label>
+          Task details
+          <textarea id="editTaskDescription" name="description" maxlength="800" placeholder="Describe the latest scope, links, or references."></textarea>
+        </label>
+        <label>
+          Department
+          <select id="editTaskDepartment" name="department">
+            <option value="">Select a department...</option>
+          </select>
+        </label>
+        <label>
+          Priority
+          <select id="editTaskPriority" name="priority">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </label>
+        <label>
+          Due date
+          <input type="date" id="editTaskDue" name="due">
+        </label>
+        <label id="editTaskOwnersWrapper">
+          Assign to teammates
+          <select id="editTaskOwners" name="ownerIds" multiple size="6"></select>
+          <span class="modal-hint">Hold Cmd (⌘) or Ctrl to select multiple teammates.</span>
+        </label>
+        <p class="modal-status" id="editTaskStatus" hidden></p>
+        <hr class="modal-divider">
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" id="editTaskCancel">Cancel</button>
+          <button type="submit" id="editTaskSubmit">Save changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="reminderModal" hidden>
+    <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="reminderModalTitle">
+      <div class="modal-header">
+        <h3 id="reminderModalTitle">Send Reminder</h3>
+        <button type="button" class="modal-close" data-close-modal="reminderModal" aria-label="Close reminder modal">×</button>
+      </div>
+      <div class="modal-highlight">
+        <span id="reminderTaskTitle"></span>
+        <span id="reminderTaskMeta"></span>
+      </div>
+      <form id="reminderModalForm" class="modal-body">
+        <label>
+          Reminder recipient
+          <select id="reminderRecipient" name="recipient">
+            <option value="owners">Assigned teammates</option>
+            <option value="member">Specific teammate</option>
+          </select>
+        </label>
+        <label id="reminderMemberWrapper" hidden>
+          Choose teammate
+          <select id="reminderMember"></select>
+        </label>
+        <label>
+          Message
+          <textarea id="reminderMessage" name="message" maxlength="320" placeholder="e.g. Posters are due by 6 pm — please share the final export."></textarea>
+          <span class="modal-hint">Customize the note that will post to Slack.</span>
+        </label>
+        <p class="modal-status" id="reminderStatus" hidden></p>
+        <hr class="modal-divider">
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" id="reminderCancel">Cancel</button>
+          <button type="submit" id="reminderSubmit">Send reminder</button>
         </div>
       </form>
     </div>
@@ -890,6 +1003,7 @@
     stats: {},
     tasks: [],
     events: [],
+    members: [],
     filters: {
       showMine: false,
       status: 'all',
@@ -899,8 +1013,12 @@
   };
   let lastMemeIndex = -1;
   let activeUpdateTaskId = null;
+  let activeReminderTaskId = null;
+  let activeEditTaskId = null;
   let createTaskSubmitting = false;
   let updateSubmitting = false;
+  let reminderSubmitting = false;
+  let editTaskSubmitting = false;
 
   const els = {
     loginPanel: document.getElementById('loginPanel'),
@@ -933,6 +1051,8 @@
     taskModalStatus: document.getElementById('taskModalStatus'),
     taskModalCancel: document.getElementById('taskModalCancel'),
     taskModalSubmit: document.getElementById('taskModalSubmit'),
+    taskModalOwners: document.getElementById('taskModalOwners'),
+    taskModalOwnersWrapper: document.getElementById('taskModalOwnersWrapper'),
     updateModal: document.getElementById('updateModal'),
     updateModalForm: document.getElementById('updateModalForm'),
     updateModalNote: document.getElementById('updateModalNote'),
@@ -941,7 +1061,31 @@
     updateModalCancel: document.getElementById('updateModalCancel'),
     updateModalSubmit: document.getElementById('updateModalSubmit'),
     updateModalTaskName: document.getElementById('updateModalTaskName'),
-    updateModalTaskStatus: document.getElementById('updateModalTaskStatus')
+    updateModalTaskStatus: document.getElementById('updateModalTaskStatus'),
+    editTaskModal: document.getElementById('editTaskModal'),
+    editTaskForm: document.getElementById('editTaskForm'),
+    editTaskTitle: document.getElementById('editTaskTitle'),
+    editTaskDescription: document.getElementById('editTaskDescription'),
+    editTaskDepartment: document.getElementById('editTaskDepartment'),
+    editTaskOwners: document.getElementById('editTaskOwners'),
+    editTaskOwnersWrapper: document.getElementById('editTaskOwnersWrapper'),
+    editTaskPriority: document.getElementById('editTaskPriority'),
+    editTaskDue: document.getElementById('editTaskDue'),
+    editTaskStatus: document.getElementById('editTaskStatus'),
+    editTaskCancel: document.getElementById('editTaskCancel'),
+    editTaskSubmit: document.getElementById('editTaskSubmit'),
+    editTaskMeta: document.getElementById('editTaskMeta'),
+    reminderModal: document.getElementById('reminderModal'),
+    reminderModalForm: document.getElementById('reminderModalForm'),
+    reminderRecipient: document.getElementById('reminderRecipient'),
+    reminderMemberWrapper: document.getElementById('reminderMemberWrapper'),
+    reminderMember: document.getElementById('reminderMember'),
+    reminderMessage: document.getElementById('reminderMessage'),
+    reminderStatus: document.getElementById('reminderStatus'),
+    reminderCancel: document.getElementById('reminderCancel'),
+    reminderSubmit: document.getElementById('reminderSubmit'),
+    reminderTaskTitle: document.getElementById('reminderTaskTitle'),
+    reminderTaskMeta: document.getElementById('reminderTaskMeta')
   };
 
   const identifierInput = els.loginForm?.querySelector('input[name="identifier"]');
@@ -974,6 +1118,31 @@
       loginId: person.loginId || '',
       departmentId: person.departmentId || ''
     });
+  };
+
+  const getRosterMembers = () => {
+    const roster = new Map();
+    const addMember = (member) => {
+      if (!member || typeof member !== 'object') return;
+      const id = member.id || member.memberId;
+      if (!id) return;
+      const existing = roster.get(id) || {};
+      roster.set(id, {
+        id,
+        displayName: member.displayName || existing.displayName || member.name || member.loginId || id,
+        loginId: member.loginId || existing.loginId || '',
+        email: member.email || existing.email || '',
+        role: member.role || existing.role || '',
+        departmentId: member.departmentId || existing.departmentId || '',
+        slackUserId: member.slackUserId || existing.slackUserId || member.raw?.slack_user_id || ''
+      });
+    };
+    (state.members || []).forEach(addMember);
+    state.people.forEach(addMember);
+    (state.tasks || []).forEach((task) => {
+      (task.owners || []).forEach(addMember);
+    });
+    return Array.from(roster.values());
   };
 
   const lookupPerson = (id) => {
@@ -1123,13 +1292,13 @@
       author: 'Sprint Standup'
     },
     {
-      text: 'If at first you don’t succeed, clear cache, drink chai, try again.',
-      author: 'The Dev Shrine'
+    text: "Teamwork makes the dream work until someone forgets to `git pull`.",
+    author: "Geetansh"
     },
     {
-      text: 'Our CI pipeline now includes 30% more memes to catch flaky spirits.',
-      author: 'Automation Squad'
-    }
+    text: "404: Sleep not found since Bug Bash prep began.",
+    author: "Insomniac Coders Club"
+    },
   ];
 
   const pickRandomMeme = () => {
@@ -1231,6 +1400,10 @@
           closeTaskModal();
         } else if (modal.id === 'updateModal') {
           closeUpdateModalSafe();
+        } else if (modal.id === 'editTaskModal') {
+          closeEditTaskModal();
+        } else if (modal.id === 'reminderModal') {
+          closeReminderModal();
         } else {
           closeModal(modal);
         }
@@ -1249,8 +1422,25 @@
     return date.toISOString();
   };
 
-  const populateTaskModalDepartments = () => {
-    const select = els.taskModalDepartment;
+  const formatDateForInput = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toISOString().slice(0, 10);
+  };
+
+  const formatDateForDisplay = (value) => {
+    if (!value) return 'No due date';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'No due date';
+    return date.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    });
+  };
+
+  const populateTaskModalDepartments = ({ select = els.taskModalDepartment, selected } = {}) => {
     if (!select) return;
     const previous = select.value;
     const options = [];
@@ -1283,11 +1473,162 @@
       select.appendChild(optionEl);
     });
     const allowed = options.map((opt) => opt.value);
-    let nextValue = allowed.includes(previous) ? previous : options[0].value;
+    let nextValue = typeof selected === 'string' && allowed.includes(selected) ? selected : previous;
+    nextValue = allowed.includes(nextValue) ? nextValue : options[0].value;
     if (!allowed.includes(nextValue)) {
       nextValue = options[0].value;
     }
     select.value = nextValue;
+  };
+
+  const getDepartmentName = (deptId) => {
+    if (!deptId) return state.department?.name || 'General';
+    const match = (state.departments || []).find((dept) => dept.id === deptId);
+    if (match?.name) return match.name;
+    if (deptId === (state.department?.id || state.member?.departmentId)) {
+      return state.department?.name || 'My team';
+    }
+    return deptId || 'General';
+  };
+
+  const populateTaskModalOwners = ({ select = els.taskModalOwners, wrapper = els.taskModalOwnersWrapper, task = null, selectedIds = [] } = {}) => {
+    if (!select || !wrapper) return;
+    const elevated = isElevatedMember();
+    if (!elevated) {
+      wrapper.hidden = true;
+      select.innerHTML = '';
+      select.disabled = true;
+      return;
+    }
+    wrapper.hidden = false;
+    select.innerHTML = '';
+    select.disabled = false;
+    const members = getRosterMembers();
+    if (!members.length) {
+      const option = document.createElement('option');
+      option.disabled = true;
+      option.textContent = 'No teammates available yet. Ask admins to add them to the roster.';
+      select.appendChild(option);
+      select.disabled = true;
+      return;
+    }
+    members.sort((a, b) => {
+      const nameA = (a.displayName || a.loginId || a.id || '').toLowerCase();
+      const nameB = (b.displayName || b.loginId || b.id || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+    const grouped = new Map();
+    members.forEach((member) => {
+      if (!member || !member.id) return;
+      const deptId = member.departmentId || '';
+      if (!grouped.has(deptId)) {
+        grouped.set(deptId, []);
+      }
+      grouped.get(deptId).push(member);
+    });
+    const taskDeptId = task?.departmentId || '';
+    const deptOrder = [];
+    (state.departments || []).forEach((dept) => {
+      if (grouped.has(dept.id)) deptOrder.push(dept.id);
+    });
+    grouped.forEach((_value, deptId) => {
+      if (!deptOrder.includes(deptId)) {
+        deptOrder.push(deptId);
+      }
+    });
+    deptOrder.forEach((deptId) => {
+      const membersInDept = grouped.get(deptId);
+      if (!membersInDept || !membersInDept.length) return;
+      const optgroup = document.createElement('optgroup');
+      const groupLabel = getDepartmentName(deptId);
+      optgroup.label = task && deptId === taskDeptId ? `${groupLabel} (Task team)` : groupLabel;
+      membersInDept.forEach((member) => {
+        const option = document.createElement('option');
+        option.value = member.id;
+        const baseName = member.displayName || member.loginId || member.id;
+        const roleLabel = member.role ? ` • ${member.role}` : '';
+        const deptLabel = member.departmentId ? ` • ${getDepartmentName(member.departmentId)}` : '';
+        option.textContent = `${baseName}${roleLabel}${deptLabel}`;
+        optgroup.appendChild(option);
+      });
+      select.appendChild(optgroup);
+    });
+    if (selectedIds.length && !select.disabled) {
+      const valueSet = new Set(selectedIds);
+      Array.from(select.options).forEach((option) => {
+        if (valueSet.has(option.value)) {
+          option.selected = true;
+        }
+      });
+    } else if (select.multiple && select.options.length) {
+      select.selectedIndex = -1;
+    }
+  };
+
+  const populateReminderMembers = (task = null, selectedMemberId = '', showWrapper = true) => {
+    const wrapper = els.reminderMemberWrapper;
+    const select = els.reminderMember;
+    if (!wrapper || !select) return;
+    const elevated = isElevatedMember();
+    if (!elevated) {
+      wrapper.hidden = true;
+      select.innerHTML = '';
+      select.disabled = true;
+      return;
+    }
+    const members = getRosterMembers();
+    select.innerHTML = '';
+    select.disabled = !showWrapper;
+    wrapper.hidden = !showWrapper;
+    const taskDeptId = task?.departmentId || state.department?.id || state.member?.departmentId || '';
+    const inDepartment = members.filter((member) => member?.departmentId === taskDeptId);
+    const others = members.filter((member) => member?.departmentId !== taskDeptId);
+
+    if (showWrapper) {
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Select teammate';
+      placeholder.disabled = true;
+      placeholder.selected = true;
+      select.appendChild(placeholder);
+    }
+
+    const addGroup = (label, items) => {
+      if (!items.length) return;
+      const optgroup = document.createElement('optgroup');
+      optgroup.label = label;
+      items
+        .filter((member) => member && member.id)
+        .sort((a, b) => (a.displayName || a.loginId || a.id || '').localeCompare(b.displayName || b.loginId || b.id || ''))
+        .forEach((member) => {
+          const option = document.createElement('option');
+          option.value = member.id;
+          const baseName = member.displayName || member.loginId || member.id;
+          const deptLabel = member.departmentId && member.departmentId !== taskDeptId ? ` • ${getDepartmentName(member.departmentId)}` : '';
+          option.textContent = `${baseName}${deptLabel}`;
+          optgroup.appendChild(option);
+        });
+      select.appendChild(optgroup);
+    };
+
+    addGroup(taskDeptId ? `${getDepartmentName(taskDeptId)} team` : 'My team', inDepartment);
+    addGroup('Other teams', others);
+
+    const optionCount = Array.from(select.options).filter((option) => !option.disabled).length;
+    if (!optionCount) {
+      const option = document.createElement('option');
+      option.disabled = true;
+      option.textContent = 'No teammates available.';
+      select.appendChild(option);
+      select.disabled = true;
+    } else {
+      if (selectedMemberId) {
+        const matched = Array.from(select.options).find((option) => option.value === selectedMemberId);
+        if (matched) {
+          select.value = selectedMemberId;
+        }
+      }
+    }
   };
 
   const populateUpdateStatusOptions = () => {
@@ -1301,6 +1642,11 @@
     });
     select.dataset.initialized = 'true';
   };
+
+  populateTaskModalDepartments();
+  populateTaskModalOwners();
+  populateReminderMembers();
+  populateUpdateStatusOptions();
 
   const showLogin = (message) => {
     els.dashboardPanel.hidden = true;
@@ -1452,13 +1798,7 @@
         priorityRaw ? priorityRaw.charAt(0).toUpperCase() + priorityRaw.slice(1) : 'Medium'
       );
       const updatesCount = typeof task.updatesCount === 'number' ? task.updatesCount : 0;
-      const restrictionBadge = task.isRestricted
-        ? '<span class="badge badge--warn">Lead &amp; mentor</span>'
-        : '';
       const badges = [statusBadge(task.status)];
-      if (restrictionBadge) {
-        badges.push(restrictionBadge);
-      }
       const owners = (task.owners || []).map((owner) => {
         indexPerson(owner);
         const label = escapeHTML(owner.displayName || owner.loginId || owner.id || 'Unknown');
@@ -1470,9 +1810,6 @@
         `<span><strong>Priority:</strong> ${priorityLabel}</span>`,
         `<span><strong>Updates:</strong> ${escapeHTML(String(updatesCount))}</span>`
       ];
-      if (task.isRestricted) {
-        metaItems.push('<span><strong>Visibility:</strong> Lead &amp; mentor</span>');
-      }
       const actions = [];
       actions.push(`<button class="btn-ghost" data-action="update" data-task="${task.id}">Add update</button>`);
       if (task.lastUpdate?.member) {
@@ -1485,12 +1822,8 @@
       if (canEditTask) {
         actions.push(`<button class="btn-ghost" data-action="edit-task" data-task="${task.id}">Edit task</button>`);
       }
-      const canUpdateDeadline =
-        typeof task.canUpdateDeadline === 'boolean' ? task.canUpdateDeadline : isElevated;
-      if (canUpdateDeadline) {
-        actions.push(
-          `<button class="btn-ghost" data-action="update-deadline" data-task="${task.id}">Update deadline</button>`
-        );
+      if (isElevated) {
+        actions.push(`<button class="btn-ghost" data-action="remind" data-task="${task.id}">Send reminder</button>`);
       }
       const canDeleteTask = typeof task.canDelete === 'boolean' ? task.canDelete : isElevated;
       if (canDeleteTask) {
@@ -1609,13 +1942,30 @@
     if (els.taskModalTitle) els.taskModalTitle.value = '';
     if (els.taskModalDescription) els.taskModalDescription.value = '';
     if (els.taskModalDue) els.taskModalDue.value = '';
+    if (els.taskModalOwners) {
+      Array.from(els.taskModalOwners.options || []).forEach((option) => {
+        option.selected = false;
+      });
+    }
     setModalMessage(els.taskModalStatus, '');
     populateTaskModalDepartments();
+    populateTaskModalOwners({ task: { departmentId: els.taskModalDepartment?.value || '' } });
   };
 
   function closeTaskModal() {
     setModalMessage(els.taskModalStatus, '');
     closeModal(els.taskModal);
+  }
+
+  function closeEditTaskModal() {
+    setModalMessage(els.editTaskStatus, '');
+    editTaskSubmitting = false;
+    if (els.editTaskSubmit) {
+      els.editTaskSubmit.disabled = false;
+      els.editTaskSubmit.textContent = 'Save changes';
+    }
+    activeEditTaskId = null;
+    closeModal(els.editTaskModal);
   }
 
   const openCreateTaskModal = () => {
@@ -1624,6 +1974,50 @@
     openModal(els.taskModal);
     requestAnimationFrame(() => {
       els.taskModalTitle?.focus();
+    });
+  };
+
+  const openEditTaskModal = (task, { focusField } = {}) => {
+    if (!task || !els.editTaskModal) {
+      setStatus('Could not load task details.', 'error');
+      return;
+    }
+    activeEditTaskId = task.id;
+    setModalMessage(els.editTaskStatus, '');
+    if (els.editTaskTitle) {
+      els.editTaskTitle.value = task.title || '';
+    }
+    if (els.editTaskDescription) {
+      els.editTaskDescription.value = task.description || '';
+    }
+    populateTaskModalDepartments({ select: els.editTaskDepartment, selected: task.departmentId || '' });
+    populateTaskModalOwners({ select: els.editTaskOwners, wrapper: els.editTaskOwnersWrapper, task, selectedIds: Array.isArray(task.ownerIds) ? task.ownerIds : [] });
+    if (els.editTaskPriority) {
+      const priorityValue = (task.priority || 'medium').toLowerCase();
+      els.editTaskPriority.value = ['low', 'high'].includes(priorityValue) ? priorityValue : 'medium';
+    }
+    if (els.editTaskDue) {
+      els.editTaskDue.value = formatDateForInput(task.dueAt);
+    }
+    if (els.editTaskSubmit) {
+      els.editTaskSubmit.disabled = false;
+      els.editTaskSubmit.textContent = 'Save changes';
+    }
+    if (els.editTaskMeta) {
+      const priorityLabel = (task.priority || 'medium').replace(/_/g, ' ');
+      const dueLabel = task.dueAt ? formatDateTime(task.dueAt) : 'No due date';
+      const ownersLabel = Array.isArray(task.owners) && task.owners.length
+        ? task.owners.map((owner) => owner.displayName || owner.loginId || owner.id).join(', ')
+        : 'Unassigned';
+      els.editTaskMeta.textContent = `${getDepartmentName(task.departmentId || '')} • Priority ${priorityLabel} • Due ${dueLabel} • Owners ${ownersLabel}`;
+    }
+    openModal(els.editTaskModal);
+    requestAnimationFrame(() => {
+      if (focusField === 'due') {
+        els.editTaskDue?.focus();
+      } else {
+        els.editTaskTitle?.focus();
+      }
     });
   };
 
@@ -1653,6 +2047,14 @@
         return;
       }
       payload.dueAt = dueIso;
+    }
+    if (isElevatedMember() && els.taskModalOwners && !els.taskModalOwners.disabled) {
+      const selectedOwners = Array.from(els.taskModalOwners.selectedOptions || [])
+        .map((option) => option.value)
+        .filter(Boolean);
+      if (selectedOwners.length) {
+        payload.ownerIds = selectedOwners;
+      }
     }
     createTaskSubmitting = true;
     if (els.taskModalSubmit) {
@@ -1691,11 +2093,164 @@
     }
   };
 
-  function closeUpdateModalSafe() {
-    activeUpdateTaskId = null;
-    setModalMessage(els.updateModalMessage, '');
-    closeModal(els.updateModal);
+  const submitEditTask = async (event) => {
+    event.preventDefault();
+    if (editTaskSubmitting) return;
+    if (!activeEditTaskId) {
+      setModalMessage(els.editTaskStatus, 'Task is no longer available.', 'error');
+      return;
+    }
+    const task = state.tasks.find((item) => item.id === activeEditTaskId);
+    if (!task) {
+      setModalMessage(els.editTaskStatus, 'Task is no longer available.', 'error');
+      return;
+    }
+    const payload = {};
+    const title = (els.editTaskTitle?.value || '').trim();
+    if (!title) {
+      setModalMessage(els.editTaskStatus, 'Give the task a title.', 'error');
+      els.editTaskTitle?.focus();
+      return;
+    }
+    if (title !== (task.title || '')) {
+      payload.title = title;
+    }
+    const description = (els.editTaskDescription?.value || '').trim();
+    if (description !== (task.description || '').trim()) {
+      payload.description = description;
+    }
+    const priorityValue = (els.editTaskPriority?.value || '').trim().toLowerCase();
+    if (priorityValue && ['low', 'medium', 'high'].includes(priorityValue)) {
+      if (priorityValue !== (task.priority || 'medium').toLowerCase()) {
+        payload.priority = priorityValue;
+      }
+    }
+    const departmentId = (els.editTaskDepartment?.value || '').trim();
+    if (departmentId && departmentId !== (task.departmentId || '')) {
+      payload.departmentId = departmentId;
+    }
+    const dueValue = els.editTaskDue?.value || '';
+    const currentDueInput = formatDateForInput(task.dueAt);
+    if ((dueValue || currentDueInput) && dueValue !== currentDueInput) {
+      if (dueValue) {
+        const dueIso = buildDueDateIso(dueValue);
+        if (!dueIso) {
+          setModalMessage(els.editTaskStatus, 'Pick a valid due date.', 'error');
+          els.editTaskDue?.focus();
+          return;
+        }
+        payload.dueAt = dueIso;
+      } else {
+        payload.dueAt = '';
+      }
+    }
+    if (els.editTaskOwners && !els.editTaskOwners.disabled) {
+      const selectedOwners = Array.from(els.editTaskOwners.selectedOptions || [])
+        .map((option) => option.value)
+        .filter(Boolean);
+      const currentOwners = Array.isArray(task.ownerIds) ? task.ownerIds : [];
+      const sameLength = selectedOwners.length === currentOwners.length;
+      const sameValues = sameLength && selectedOwners.every((value) => currentOwners.includes(value));
+      if (!sameValues) {
+        payload.ownerIds = selectedOwners;
+      }
+    }
+    if (!Object.keys(payload).length) {
+      setModalMessage(els.editTaskStatus, 'No changes to save.', 'error');
+      return;
+    }
+    editTaskSubmitting = true;
+    if (els.editTaskSubmit) {
+      els.editTaskSubmit.disabled = true;
+      els.editTaskSubmit.textContent = 'Saving...';
+    }
+    try {
+      await fetchJSON(`/api/team/tasks/${encodeURIComponent(activeEditTaskId)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload)
+      });
+      closeEditTaskModal();
+      setStatus('Task updated.', 'success');
+      await refreshProfile();
+      await refreshTasks();
+    } catch (err) {
+      console.error(err);
+      const errorCode = err.payload?.error || 'update_failed';
+      const messages = {
+        missing_title: 'Task title cannot be empty.',
+        invalid_owner: 'One of the selected teammates is invalid.',
+        invalid_department: 'Select a valid department for this task.',
+        forbidden: 'You do not have permission to edit this task.',
+        update_failed: 'Could not update task.'
+      };
+      setModalMessage(els.editTaskStatus, messages[errorCode] || 'Could not update task.', 'error');
+    } finally {
+      editTaskSubmitting = false;
+      if (els.editTaskSubmit) {
+        els.editTaskSubmit.disabled = false;
+        els.editTaskSubmit.textContent = 'Save changes';
+      }
+    }
+  };
+
+function closeUpdateModalSafe() {
+  activeUpdateTaskId = null;
+  setModalMessage(els.updateModalMessage, '');
+  closeModal(els.updateModal);
+}
+
+function closeReminderModal() {
+  activeReminderTaskId = null;
+  reminderSubmitting = false;
+  setModalMessage(els.reminderStatus, '');
+  if (els.reminderSubmit) {
+    els.reminderSubmit.disabled = false;
+    els.reminderSubmit.textContent = 'Send reminder';
   }
+  closeModal(els.reminderModal);
+}
+
+const updateReminderRecipientUI = () => {
+  const scope = els.reminderRecipient?.value || 'owners';
+  if (!els.reminderMemberWrapper) return;
+  const show = scope === 'member';
+  els.reminderMemberWrapper.hidden = !show;
+  if (els.reminderMember) {
+    els.reminderMember.disabled = !show;
+  }
+};
+
+  const openReminderModal = (task) => {
+    if (!els.reminderModal || !task) return;
+    activeReminderTaskId = task.id;
+    setModalMessage(els.reminderStatus, '');
+    const owners = Array.isArray(task.ownerIds) ? task.ownerIds : [];
+    if (els.reminderRecipient) {
+      els.reminderRecipient.value = owners.length ? 'owners' : 'member';
+    }
+    const showMemberSelect = (els.reminderRecipient?.value || 'owners') === 'member';
+    populateReminderMembers(task, owners[0] || '', showMemberSelect);
+    updateReminderRecipientUI();
+    if (els.reminderTaskTitle) {
+      els.reminderTaskTitle.textContent = task.title || 'Untitled task';
+    }
+    if (els.reminderTaskMeta) {
+      const dueLabel = task.dueAt ? formatDateForDisplay(task.dueAt) : 'No due date';
+      const priorityLabel = (task.priority || 'medium').replace(/_/g, ' ');
+      els.reminderTaskMeta.textContent = `${getDepartmentName(task.departmentId || '')} • Priority ${priorityLabel} • Due ${dueLabel}`;
+    }
+    if (els.reminderMessage) {
+      const defaultMessage = task.dueAt
+        ? `Please share an update — this task is due ${formatDateForDisplay(task.dueAt)}.`
+        : '';
+      els.reminderMessage.value = defaultMessage;
+    }
+  if (els.reminderSubmit) {
+    els.reminderSubmit.disabled = false;
+    els.reminderSubmit.textContent = 'Send reminder';
+  }
+  openModal(els.reminderModal);
+};
 
   const openUpdateModal = (task) => {
     if (!els.updateModal || !task) return;
@@ -1776,6 +2331,60 @@
     }
   };
 
+  const submitReminderModal = async (event) => {
+    event.preventDefault();
+    if (reminderSubmitting) return;
+    if (!activeReminderTaskId) {
+      setModalMessage(els.reminderStatus, 'Task is no longer available.', 'error');
+      return;
+    }
+    const scope = els.reminderRecipient?.value || 'owners';
+    const payload = { scope };
+    if (scope === 'member') {
+      const memberId = els.reminderMember?.value || '';
+      if (!memberId) {
+        setModalMessage(els.reminderStatus, 'Choose a teammate for this reminder.', 'error');
+        return;
+      }
+      payload.memberId = memberId;
+    }
+    const message = (els.reminderMessage?.value || '').trim();
+    if (message) {
+      payload.message = message;
+    }
+    reminderSubmitting = true;
+    if (els.reminderSubmit) {
+      els.reminderSubmit.disabled = true;
+      els.reminderSubmit.textContent = 'Sending...';
+    }
+    try {
+      await fetchJSON(`/api/team/tasks/${encodeURIComponent(activeReminderTaskId)}/reminders`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      closeReminderModal();
+      setStatus('Reminder sent.', 'success');
+    } catch (err) {
+      console.error(err);
+      const errorCode = err.payload?.error || 'reminder_failed';
+      const messages = {
+        missing_member: 'Pick a teammate to remind.',
+        invalid_member: 'Selected teammate could not be found.',
+        no_assignees: 'This task does not have any owners yet.',
+        invalid_department: 'Department could not be resolved.',
+        forbidden: 'You do not have permission to send reminders for this task.',
+        reminder_failed: 'Could not send reminder. Try again.'
+      };
+      setModalMessage(els.reminderStatus, messages[errorCode] || 'Could not send reminder.', 'error');
+    } finally {
+      reminderSubmitting = false;
+      if (els.reminderSubmit) {
+        els.reminderSubmit.disabled = false;
+        els.reminderSubmit.textContent = 'Send reminder';
+      }
+    }
+  };
+
   const refreshEvents = async () => {
     const response = await fetchJSON('/api/team/events');
     let events = Array.isArray(response.events) ? [...response.events] : [];
@@ -1811,25 +2420,27 @@
     state.member = response.member;
     state.department = response.department;
     state.departments = response.departments || [];
+    state.members = Array.isArray(response.members) ? [...response.members] : [];
     state.stats = response.stats || {};
     indexPerson(state.member);
+    state.members.forEach(indexPerson);
     renderMember();
     renderStats();
     renderMeme();
     updateDepartmentFilter();
     populateTaskModalDepartments();
+    populateTaskModalOwners();
+    populateReminderMembers(null, '', false);
+    updateReminderRecipientUI();
     els.myTasksToggle.checked = state.filters.showMine;
     const memberRole = getMemberRole();
     if (['lead', 'mentor', 'member'].includes(memberRole)) {
-    els.newTaskBtn.hidden = false;
-  } else {
-    els.newTaskBtn.hidden = true;
-  }
-};
-
-  populateTaskModalDepartments();
-  populateUpdateStatusOptions();
-  [els.taskModal, els.updateModal].forEach(registerModalBackdrop);
+      els.newTaskBtn.hidden = false;
+    } else {
+      els.newTaskBtn.hidden = true;
+    }
+  };
+  [els.taskModal, els.updateModal, els.editTaskModal, els.reminderModal].forEach(registerModalBackdrop);
   document.querySelectorAll('[data-close-modal]').forEach((button) => {
     button.addEventListener('click', () => {
       const targetId = button.dataset.closeModal;
@@ -1839,6 +2450,10 @@
         closeTaskModal();
       } else if (targetId === 'updateModal') {
         closeUpdateModalSafe();
+      } else if (targetId === 'editTaskModal') {
+        closeEditTaskModal();
+      } else if (targetId === 'reminderModal') {
+        closeReminderModal();
       } else {
         closeModal(modal);
       }
@@ -2026,64 +2641,19 @@
         setStatus('Only leads and mentors can edit task details.', 'error');
         return;
       }
-      const updatedTitle = prompt('Update task title:', task?.title || '');
-      if (updatedTitle === null) return;
-      const trimmedTitle = updatedTitle.trim();
-      if (!trimmedTitle) {
-        alert('Task title cannot be empty.');
+      openEditTaskModal(task);
+      return;
+    }
+    if (action === 'remind') {
+      if (!elevated) {
+        setStatus('Only leads and mentors can send reminders.', 'error');
         return;
       }
-      const updatedDescription = prompt(
-        'Update task description (leave blank to clear):',
-        task?.description || ''
-      );
-      if (updatedDescription === null) return;
-      const updatedPriority = prompt(
-        'Update priority (low, medium, high):',
-        (task?.priority || 'medium').toLowerCase()
-      );
-      if (updatedPriority === null) return;
-      const normalizedPriority = updatedPriority.trim().toLowerCase();
-      if (normalizedPriority && !['low', 'medium', 'high'].includes(normalizedPriority)) {
-        alert('Priority must be low, medium, or high.');
+      if (!task) {
+        setStatus('Could not load task details.', 'error');
         return;
       }
-      const payload = {};
-      if (trimmedTitle !== (task?.title || '')) {
-        payload.title = trimmedTitle;
-      }
-      const trimmedDescription = (updatedDescription || '').trim();
-      if (trimmedDescription !== (task?.description || '').trim()) {
-        payload.description = trimmedDescription;
-      }
-      if (
-        normalizedPriority &&
-        normalizedPriority !== (task?.priority || '').toLowerCase()
-      ) {
-        payload.priority = normalizedPriority;
-      }
-      if (!Object.keys(payload).length) {
-        setStatus('No changes to save.');
-        return;
-      }
-      try {
-        await fetchJSON(`/api/team/tasks/${encodeURIComponent(taskId)}`, {
-          method: 'PATCH',
-          body: JSON.stringify(payload)
-        });
-        setStatus('Task details updated.', 'success');
-        await refreshProfile();
-        await refreshTasks();
-      } catch (err) {
-        const errorCode = err.payload?.error || 'update_failed';
-        const messages = {
-          missing_title: 'Task title cannot be empty.',
-          forbidden: 'You do not have permission to edit this task.',
-          server_error: 'Server error while updating.',
-          update_failed: 'Could not update task.'
-        };
-        setStatus(messages[errorCode] || 'Could not update task.', 'error');
-      }
+      openReminderModal(task);
       return;
     }
     if (action === 'update-deadline') {
@@ -2091,37 +2661,7 @@
         setStatus('Only leads and mentors can update deadlines.', 'error');
         return;
       }
-      const defaultDue =
-        task?.dueAt && !Number.isNaN(new Date(task.dueAt).getTime())
-          ? new Date(task.dueAt).toISOString()
-          : '';
-      const input = prompt(
-        'Enter new due date/time (ISO 8601 or YYYY-MM-DD). Leave empty to clear:',
-        defaultDue
-      );
-      if (input === null) return;
-      const value = input.trim();
-      const payload = { dueAt: value };
-      if (!value) {
-        payload.dueAt = '';
-      }
-      try {
-        await fetchJSON(`/api/team/tasks/${encodeURIComponent(taskId)}`, {
-          method: 'PATCH',
-          body: JSON.stringify(payload)
-        });
-        setStatus('Deadline updated.', 'success');
-        await refreshProfile();
-        await refreshTasks();
-      } catch (err) {
-        const errorCode = err.payload?.error || 'update_failed';
-        const messages = {
-          invalid_status: 'Due date was not accepted.',
-          forbidden: 'You do not have permission to change the deadline.',
-          update_failed: 'Could not update deadline.'
-        };
-        setStatus(messages[errorCode] || 'Could not update deadline.', 'error');
-      }
+      openEditTaskModal(task, { focusField: 'due' });
       return;
     }
     if (action === 'delete-task') {
@@ -2214,14 +2754,63 @@
   if (els.taskModalCancel) {
     els.taskModalCancel.addEventListener('click', closeTaskModal);
   }
+  if (els.taskModalDepartment) {
+    els.taskModalDepartment.addEventListener('change', () => {
+      const selectedOwners = Array.from(els.taskModalOwners?.selectedOptions || [])
+        .map((option) => option.value)
+        .filter(Boolean);
+      const pseudoTask = { departmentId: els.taskModalDepartment.value };
+      populateTaskModalOwners({ task: pseudoTask, selectedIds: selectedOwners });
+    });
+  }
   if (els.updateModalForm) {
     els.updateModalForm.addEventListener('submit', submitUpdateModal);
   }
   if (els.updateModalCancel) {
     els.updateModalCancel.addEventListener('click', closeUpdateModalSafe);
   }
+  if (els.editTaskForm) {
+    els.editTaskForm.addEventListener('submit', submitEditTask);
+  }
+  if (els.editTaskCancel) {
+    els.editTaskCancel.addEventListener('click', closeEditTaskModal);
+  }
+  if (els.editTaskDepartment) {
+    els.editTaskDepartment.addEventListener('change', () => {
+      const selectedOwners = Array.from(els.editTaskOwners?.selectedOptions || [])
+        .map((option) => option.value)
+        .filter(Boolean);
+      const pseudoTask = { departmentId: els.editTaskDepartment.value };
+      populateTaskModalOwners({ select: els.editTaskOwners, wrapper: els.editTaskOwnersWrapper, task: pseudoTask, selectedIds: selectedOwners });
+    });
+  }
+  if (els.reminderModalForm) {
+    els.reminderModalForm.addEventListener('submit', submitReminderModal);
+  }
+  if (els.reminderCancel) {
+    els.reminderCancel.addEventListener('click', closeReminderModal);
+  }
+  if (els.reminderRecipient) {
+    els.reminderRecipient.addEventListener('change', () => {
+      updateReminderRecipientUI();
+      if (!isModalOpen(els.reminderModal)) return;
+      const task = state.tasks.find((item) => item.id === activeReminderTaskId) || null;
+      if (!task) return;
+      const owners = Array.isArray(task.ownerIds) ? task.ownerIds : [];
+      const isMemberScope = els.reminderRecipient.value === 'member';
+      populateReminderMembers(task, isMemberScope ? '' : '', isMemberScope);
+    });
+  }
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
+    if (isModalOpen(els.reminderModal)) {
+      closeReminderModal();
+      return;
+    }
+    if (isModalOpen(els.editTaskModal)) {
+      closeEditTaskModal();
+      return;
+    }
     if (isModalOpen(els.updateModal)) {
       closeUpdateModalSafe();
       return;
