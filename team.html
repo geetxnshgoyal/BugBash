@@ -25,12 +25,24 @@
     background:
       radial-gradient(1200px 600px at 10% 10%,rgba(123,224,74,0.05),transparent),
       linear-gradient(180deg,var(--bg1),var(--bg2));
+    position:relative;
+    overflow-x:hidden;
+  }
+  #bg-canvas{
+    position:fixed;
+    inset:0;
+    z-index:0;
+    pointer-events:none;
+    opacity:.65;
+    mix-blend-mode:screen;
   }
   a{color:var(--accent)}
   .wrap{
     max-width:1200px;
     margin:0 auto;
     padding:32px 20px 80px;
+    position:relative;
+    z-index:2;
   }
   header{
     display:flex;
@@ -260,6 +272,12 @@
     align-items:center;
     gap:10px;
   }
+  .task-badges{
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+  }
   .task-card p{margin:6px 0 12px;font-size:14px;color:var(--muted)}
   .task-team-tag{
     display:inline-flex;
@@ -292,6 +310,42 @@
   .task-actions button{
     padding:8px 16px;
     font-size:13px;
+  }
+  .status-menu{
+    position:absolute;
+    z-index:40;
+    min-width:180px;
+    background:rgba(15,23,42,0.95);
+    border:1px solid rgba(123,224,74,0.18);
+    border-radius:12px;
+    padding:6px;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    box-shadow:0 18px 40px rgba(2,8,23,0.5);
+    backdrop-filter:blur(10px);
+  }
+  .status-menu__item{
+    border:none;
+    background:transparent;
+    color:var(--white);
+    text-align:left;
+    padding:8px 12px;
+    border-radius:8px;
+    font:inherit;
+    cursor:pointer;
+    transition:background .18s ease,color .18s ease;
+  }
+  .status-menu__item:hover,
+  .status-menu__item:focus{
+    background:rgba(123,224,74,0.18);
+    color:var(--accent);
+    outline:none;
+  }
+  .status-menu__item.is-active{
+    background:rgba(123,224,74,0.24);
+    color:var(--accent);
+    font-weight:600;
   }
   .task-owners{
     display:flex;
@@ -403,9 +457,18 @@
       align-items:start;
     }
   }
+  @media(prefers-reduced-motion:reduce){
+    *,*::before,*::after{
+      animation-duration:.01ms!important;
+      animation-iteration-count:1!important;
+      transition-duration:.01ms!important;
+      scroll-behavior:auto!important;
+    }
+  }
 </style>
 </head>
 <body>
+<canvas id="bg-canvas"></canvas>
 <div class="wrap">
   <header>
     <div class="brand">BUG BASH <span>Team</span></div>
@@ -495,6 +558,140 @@
 
 <script>
 (() => {
+  const canvas = document.getElementById('bg-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let width = (canvas.width = window.innerWidth);
+  let height = (canvas.height = window.innerHeight);
+  const particles = [];
+  const pulses = [];
+
+  const random = (min, max) => Math.random() * (max - min) + min;
+
+  const paintStatic = () => {
+    const gradient = ctx.createLinearGradient(0, 0, width, height);
+    gradient.addColorStop(0, 'rgba(11,16,32,0.18)');
+    gradient.addColorStop(1, 'rgba(2,8,18,0.22)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+  };
+
+  const rebuildParticles = () => {
+    particles.length = 0;
+    pulses.length = 0;
+    const particleCount = Math.max(40, Math.floor((width * height) / 70000));
+    for (let i = 0; i < particleCount; i++) {
+      particles.push({
+        x: random(0, width),
+        y: random(0, height),
+        r: random(0.6, 2.6),
+        vx: random(-0.4, 0.6),
+        vy: random(-0.3, 0.4)
+      });
+    }
+    const pulseCount = Math.max(5, Math.floor(width / 280));
+    for (let i = 0; i < pulseCount; i++) {
+      pulses.push({
+        x: random(0, width),
+        y: random(0, height),
+        radius: random(20, 70),
+        alpha: random(0.04, 0.16),
+        speed: random(0.3, 0.55)
+      });
+    }
+  };
+
+  const resetPulse = (pulse) => {
+    pulse.x = random(0, width);
+    pulse.y = random(0, height);
+    pulse.radius = random(16, 60);
+    pulse.alpha = random(0.04, 0.14);
+    pulse.speed = random(0.28, 0.52);
+  };
+
+  const resize = () => {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+    if (prefersReduced) {
+      paintStatic();
+    } else {
+      rebuildParticles();
+    }
+  };
+  window.addEventListener('resize', resize);
+
+  if (prefersReduced) {
+    paintStatic();
+    return;
+  }
+
+  rebuildParticles();
+
+  const draw = () => {
+    ctx.clearRect(0, 0, width, height);
+    paintStatic();
+
+    for (const pulse of pulses) {
+      pulse.radius += pulse.speed;
+      pulse.alpha -= 0.0014;
+      if (pulse.alpha <= 0) {
+        resetPulse(pulse);
+      }
+      const gradient = ctx.createRadialGradient(pulse.x, pulse.y, 0, pulse.x, pulse.y, pulse.radius);
+      gradient.addColorStop(0, `rgba(123,224,74,${pulse.alpha})`);
+      gradient.addColorStop(1, 'rgba(123,224,74,0)');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(pulse.x, pulse.y, pulse.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    for (const particle of particles) {
+      particle.x += particle.vx;
+      particle.y += particle.vy;
+      if (particle.x < -20) particle.x = width + 20;
+      if (particle.x > width + 20) particle.x = -20;
+      if (particle.y < -20) particle.y = height + 20;
+      if (particle.y > height + 20) particle.y = -20;
+
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(123,224,74,${0.06 + particle.r / 7})`;
+      ctx.shadowColor = 'rgba(123,224,74,0.2)';
+      ctx.shadowBlur = 6;
+      ctx.arc(particle.x, particle.y, particle.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+
+    const limit = Math.min(particles.length, 120);
+    for (let i = 0; i < limit; i++) {
+      const a = particles[i];
+      for (let j = i + 1; j < limit; j++) {
+        const b = particles[j];
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const distSq = dx * dx + dy * dy;
+        if (distSq < 7800) {
+          ctx.beginPath();
+          ctx.strokeStyle = `rgba(123,224,74,${0.004 + (7800 - distSq) / 10000})`;
+          ctx.lineWidth = 0.7;
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    requestAnimationFrame(draw);
+  };
+
+  draw();
+})();
+</script>
+
+<script>
+(() => {
   const STORAGE_KEY = 'bugbash_team_token';
   const state = {
     token: null,
@@ -567,6 +764,126 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+
+  const getMemberRole = () =>
+    (state.member?.roleNormalized || state.member?.role || '').toLowerCase();
+
+  const isElevatedMember = () => {
+    const role = getMemberRole();
+    return role === 'lead' || role === 'mentor';
+  };
+
+  const STATUS_OPTIONS = [
+    { value: 'todo', label: 'To do' },
+    { value: 'in_progress', label: 'In progress' },
+    { value: 'blocked', label: 'Blocked' },
+    { value: 'done', label: 'Completed' }
+  ];
+
+  let statusMenuEl = null;
+  let statusMenuAnchor = null;
+  let statusMenuOutsideHandler = null;
+  let statusMenuKeyHandler = null;
+
+  const closeStatusMenu = () => {
+    if (statusMenuOutsideHandler) {
+      document.removeEventListener('click', statusMenuOutsideHandler, true);
+      statusMenuOutsideHandler = null;
+    }
+    if (statusMenuKeyHandler) {
+      document.removeEventListener('keydown', statusMenuKeyHandler, true);
+      statusMenuKeyHandler = null;
+    }
+    if (statusMenuEl) {
+      statusMenuEl.remove();
+      statusMenuEl = null;
+    }
+    statusMenuAnchor = null;
+  };
+
+  const openStatusMenu = (anchorEl, task) => {
+    if (!anchorEl || !task) return;
+    closeStatusMenu();
+    statusMenuAnchor = anchorEl;
+    const menu = document.createElement('div');
+    menu.className = 'status-menu';
+    menu.setAttribute('role', 'menu');
+    menu.tabIndex = -1;
+    STATUS_OPTIONS.forEach((option) => {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'status-menu__item';
+      item.dataset.value = option.value;
+      if (option.value === task.status) {
+        item.classList.add('is-active');
+      }
+      item.textContent = option.label;
+      item.addEventListener('click', async (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        closeStatusMenu();
+        if (option.value === task.status) {
+          return;
+        }
+        try {
+          await fetchJSON(`/api/team/tasks/${encodeURIComponent(task.id)}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status: option.value })
+          });
+          setStatus('Task status updated.', 'success');
+          await refreshProfile();
+          await refreshTasks();
+        } catch (err) {
+          const errorCode = err.payload?.error || 'update_failed';
+          const messages = {
+            forbidden: 'You do not have permission to update the status.',
+            invalid_status: 'Status must be todo, in_progress, blocked, or done.',
+            update_failed: 'Could not update task.'
+          };
+          setStatus(messages[errorCode] || 'Could not update task.', 'error');
+        }
+      });
+      menu.appendChild(item);
+    });
+    menu.addEventListener('click', (evt) => evt.stopPropagation());
+    menu.style.opacity = '0';
+    document.body.appendChild(menu);
+    const anchorRect = anchorEl.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    let left = anchorRect.left + window.scrollX;
+    let top = anchorRect.bottom + window.scrollY + 8;
+    const maxLeft = window.scrollX + window.innerWidth - menuRect.width - 16;
+    const minLeft = window.scrollX + 16;
+    if (left > maxLeft) left = Math.max(minLeft, maxLeft);
+    if (left < minLeft) left = minLeft;
+    const maxTop = window.scrollY + window.innerHeight - menuRect.height - 16;
+    const aboveTop = anchorRect.top + window.scrollY - menuRect.height - 8;
+    if (top > maxTop) {
+      top = Math.max(window.scrollY + 16, aboveTop);
+    }
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+    menu.style.opacity = '1';
+    statusMenuEl = menu;
+    statusMenuOutsideHandler = (evt) => {
+      if (!statusMenuEl) return;
+      if (statusMenuEl.contains(evt.target) || evt.target === statusMenuAnchor) {
+        return;
+      }
+      closeStatusMenu();
+    };
+    document.addEventListener('click', statusMenuOutsideHandler, true);
+    statusMenuKeyHandler = (evt) => {
+      if (evt.key === 'Escape') {
+        closeStatusMenu();
+      }
+    };
+    document.addEventListener('keydown', statusMenuKeyHandler, true);
+    menu.focus({ preventScroll: true });
+  };
+
+  window.addEventListener('scroll', closeStatusMenu, true);
+  window.addEventListener('resize', closeStatusMenu, true);
 
   const MEMES = [
     {
@@ -760,6 +1077,7 @@
   };
 
   const renderTasks = () => {
+    closeStatusMenu();
     els.taskList.innerHTML = '';
     if (!state.tasks.length) {
       const empty = document.createElement('p');
@@ -768,6 +1086,8 @@
       els.taskList.appendChild(empty);
       return;
     }
+    const memberRole = getMemberRole();
+    const isElevated = memberRole === 'lead' || memberRole === 'mentor';
     state.tasks.forEach((task) => {
       const card = document.createElement('article');
       card.className = 'task-card';
@@ -780,20 +1100,54 @@
       const description = escapeHTML(task.description || 'No description provided.');
       const departmentName = escapeHTML(task.departmentName || task.departmentId || 'N/A');
       const dueText = escapeHTML(formatDateTime(task.dueAt));
+      const priorityRaw = (task.priority || 'medium').replace(/_/g, ' ');
+      const priorityLabel = escapeHTML(
+        priorityRaw ? priorityRaw.charAt(0).toUpperCase() + priorityRaw.slice(1) : 'Medium'
+      );
+      const updatesCount = typeof task.updatesCount === 'number' ? task.updatesCount : 0;
+      const restrictionBadge = task.isRestricted
+        ? '<span class="badge badge--warn">Lead &amp; mentor</span>'
+        : '';
+      const badges = [statusBadge(task.status)];
+      if (restrictionBadge) {
+        badges.push(restrictionBadge);
+      }
       const owners = (task.owners || []).map((owner) => {
         indexPerson(owner);
         const label = escapeHTML(owner.displayName || owner.loginId || owner.id || 'Unknown');
         return `<span class="owner-chip">${label}</span>`;
       });
       const ownersBlock = owners.length ? owners.join('') : '<span class="badge badge--warn">Unassigned</span>';
-      const actions = [
-        `<button class="btn-ghost" data-action="update" data-task="${task.id}">Add update</button>`
+      const metaItems = [
+        `<span><strong>Due:</strong> ${dueText}</span>`,
+        `<span><strong>Priority:</strong> ${priorityLabel}</span>`,
+        `<span><strong>Updates:</strong> ${escapeHTML(String(updatesCount))}</span>`
       ];
+      if (task.isRestricted) {
+        metaItems.push('<span><strong>Visibility:</strong> Lead &amp; mentor</span>');
+      }
+      const actions = [];
+      actions.push(`<button class="btn-ghost" data-action="update" data-task="${task.id}">Add update</button>`);
       if (task.lastUpdate?.member) {
         indexPerson(task.lastUpdate.member);
       }
-      if (state.member.role === 'lead') {
-        actions.push(`<button class="btn-ghost" data-action="edit" data-task="${task.id}">Quick status</button>`);
+      if (isElevated) {
+        actions.push(`<button class="btn-ghost" data-action="edit" data-task="${task.id}">Update status</button>`);
+      }
+      const canEditTask = typeof task.canEdit === 'boolean' ? task.canEdit : isElevated;
+      if (canEditTask) {
+        actions.push(`<button class="btn-ghost" data-action="edit-task" data-task="${task.id}">Edit task</button>`);
+      }
+      const canUpdateDeadline =
+        typeof task.canUpdateDeadline === 'boolean' ? task.canUpdateDeadline : isElevated;
+      if (canUpdateDeadline) {
+        actions.push(
+          `<button class="btn-ghost" data-action="update-deadline" data-task="${task.id}">Update deadline</button>`
+        );
+      }
+      const canDeleteTask = typeof task.canDelete === 'boolean' ? task.canDelete : isElevated;
+      if (canDeleteTask) {
+        actions.push(`<button class="btn-ghost" data-action="delete-task" data-task="${task.id}">Delete task</button>`);
       }
       if (task.canClaim) {
         actions.push(`<button class="btn-ghost" data-action="claim" data-task="${task.id}">Assign to me</button>`);
@@ -811,13 +1165,12 @@
       card.innerHTML = `
         <h3>
           <span>${title}</span>
-          ${statusBadge(task.status)}
+          <span class="task-badges">${badges.join(' ')}</span>
         </h3>
         <div class="task-team-tag">Team: ${departmentName}</div>
         <p>${description}</p>
         <div class="task-meta">
-          <span><strong>Due:</strong> ${dueText}</span>
-          <span><strong>Updates:</strong> ${task.updatesCount}</span>
+          ${metaItems.join('')}
         </div>
         <div class="task-owners">
           ${ownersBlock}
@@ -829,9 +1182,21 @@
         </div>
         <details class="task-updates" data-task="${task.id}">
           <summary>View updates</summary>
-          <div class="updates-list" data-updates="${task.id}"></div>
+          <div class="updates-list" data-updates="${task.id}">Loading updates...</div>
         </details>
       `;
+      const updatesDetails = card.querySelector(`details.task-updates[data-task="${task.id}"]`);
+      if (updatesDetails) {
+        updatesDetails.dataset.updatesLoaded = 'false';
+        updatesDetails.dataset.updatesLoading = 'false';
+        updatesDetails.addEventListener('toggle', () => loadUpdatesIfNeeded(updatesDetails));
+        const summaryEl = updatesDetails.querySelector('summary');
+        if (summaryEl) {
+          summaryEl.addEventListener('click', () =>
+            requestAnimationFrame(() => loadUpdatesIfNeeded(updatesDetails))
+          );
+        }
+      }
       els.taskList.appendChild(card);
       requestAnimationFrame(() => card.classList.add('task-card--show'));
     });
@@ -935,7 +1300,8 @@
     renderMeme();
     updateDepartmentFilter();
     els.myTasksToggle.checked = state.filters.showMine;
-    if (state.member?.role === 'lead') {
+    const memberRole = getMemberRole();
+    if (['lead', 'mentor', 'member'].includes(memberRole)) {
       els.newTaskBtn.hidden = false;
     } else {
       els.newTaskBtn.hidden = true;
@@ -1014,6 +1380,9 @@
 
   const loadUpdatesIfNeeded = async (detailsEl) => {
     if (!detailsEl.open) return;
+    if (detailsEl.dataset.updatesLoaded === 'true') return;
+    if (detailsEl.dataset.updatesLoading === 'true') return;
+    detailsEl.dataset.updatesLoading = 'true';
     const taskId = detailsEl.dataset.task;
     if (!taskId) return;
     const container = detailsEl.querySelector(`[data-updates="${taskId}"]`);
@@ -1038,6 +1407,7 @@
       }
       if (!updates.length) {
         container.textContent = 'No updates yet.';
+        detailsEl.dataset.updatesLoaded = 'true';
         return;
       }
       const markup = updates
@@ -1053,8 +1423,16 @@
         })
         .join('');
       container.innerHTML = markup;
+      detailsEl.dataset.updatesLoaded = 'true';
     } catch (err) {
-      container.textContent = 'Could not load updates.';
+      const errorCode = err.payload?.error || '';
+      if (errorCode === 'forbidden') {
+        container.textContent = 'You do not have permission to view updates on this task.';
+      } else {
+        container.textContent = 'Could not load updates.';
+      }
+    } finally {
+      detailsEl.dataset.updatesLoading = 'false';
     }
   };
 
@@ -1064,23 +1442,25 @@
     const action = button.dataset.action;
     const taskId = button.dataset.task;
     if (!taskId) return;
+    const task = state.tasks.find((item) => item.id === taskId) || null;
+    const elevated = isElevatedMember();
+    closeStatusMenu();
     if (action === 'update') {
-      const note = prompt('Add a short progress update (120 chars max).', '');
-      if (!note) return;
-      if (note.length > 240) {
-        alert('Please keep the update concise (under 240 characters).');
+      const noteInput = prompt('Add a short progress update (120 chars max).', '');
+      if (noteInput === null) return;
+      const trimmedNote = noteInput.trim();
+      if (!trimmedNote) {
+        setStatus('Write a note before submitting an update.', 'error');
         return;
       }
-      let status = '';
-      if (confirm('Mark this task as completed?')) {
-        status = 'done';
-      } else if (confirm('Is this task blocked?')) {
-        status = 'blocked';
+      if (trimmedNote.length > 240) {
+        alert('Please keep the update concise (under 240 characters).');
+        return;
       }
       try {
         await fetchJSON(`/api/team/tasks/${encodeURIComponent(taskId)}/updates`, {
           method: 'POST',
-          body: JSON.stringify({ note, status: status || undefined })
+          body: JSON.stringify({ note: trimmedNote })
         });
         setStatus('Update saved.', 'success');
         await refreshProfile();
@@ -1097,24 +1477,144 @@
       }
       return;
     }
-    if (action === 'edit' && state.member?.role === 'lead') {
-      const status = prompt('Set new status (todo, in_progress, blocked, done):', '');
-      if (!status) return;
-      const normalized = status.trim().toLowerCase();
-      if (!['todo','in_progress','blocked','done'].includes(normalized)) {
-        alert('Status must be one of: todo, in_progress, blocked, done.');
+    if (action === 'edit') {
+      if (!elevated) {
+        setStatus('Only leads and mentors can update status.', 'error');
+        return;
+      }
+      if (!task) {
+        setStatus('Could not load task details.', 'error');
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      openStatusMenu(button, task);
+      return;
+    }
+    if (action === 'edit-task') {
+      if (!elevated) {
+        setStatus('Only leads and mentors can edit task details.', 'error');
+        return;
+      }
+      const updatedTitle = prompt('Update task title:', task?.title || '');
+      if (updatedTitle === null) return;
+      const trimmedTitle = updatedTitle.trim();
+      if (!trimmedTitle) {
+        alert('Task title cannot be empty.');
+        return;
+      }
+      const updatedDescription = prompt(
+        'Update task description (leave blank to clear):',
+        task?.description || ''
+      );
+      if (updatedDescription === null) return;
+      const updatedPriority = prompt(
+        'Update priority (low, medium, high):',
+        (task?.priority || 'medium').toLowerCase()
+      );
+      if (updatedPriority === null) return;
+      const normalizedPriority = updatedPriority.trim().toLowerCase();
+      if (normalizedPriority && !['low', 'medium', 'high'].includes(normalizedPriority)) {
+        alert('Priority must be low, medium, or high.');
+        return;
+      }
+      const payload = {};
+      if (trimmedTitle !== (task?.title || '')) {
+        payload.title = trimmedTitle;
+      }
+      const trimmedDescription = (updatedDescription || '').trim();
+      if (trimmedDescription !== (task?.description || '').trim()) {
+        payload.description = trimmedDescription;
+      }
+      if (
+        normalizedPriority &&
+        normalizedPriority !== (task?.priority || '').toLowerCase()
+      ) {
+        payload.priority = normalizedPriority;
+      }
+      if (!Object.keys(payload).length) {
+        setStatus('No changes to save.');
         return;
       }
       try {
         await fetchJSON(`/api/team/tasks/${encodeURIComponent(taskId)}`, {
           method: 'PATCH',
-          body: JSON.stringify({ status: normalized })
+          body: JSON.stringify(payload)
         });
-        setStatus('Task updated.', 'success');
+        setStatus('Task details updated.', 'success');
         await refreshProfile();
         await refreshTasks();
       } catch (err) {
-        setStatus('Could not update task.', 'error');
+        const errorCode = err.payload?.error || 'update_failed';
+        const messages = {
+          missing_title: 'Task title cannot be empty.',
+          forbidden: 'You do not have permission to edit this task.',
+          server_error: 'Server error while updating.',
+          update_failed: 'Could not update task.'
+        };
+        setStatus(messages[errorCode] || 'Could not update task.', 'error');
+      }
+      return;
+    }
+    if (action === 'update-deadline') {
+      if (!elevated) {
+        setStatus('Only leads and mentors can update deadlines.', 'error');
+        return;
+      }
+      const defaultDue =
+        task?.dueAt && !Number.isNaN(new Date(task.dueAt).getTime())
+          ? new Date(task.dueAt).toISOString()
+          : '';
+      const input = prompt(
+        'Enter new due date/time (ISO 8601 or YYYY-MM-DD). Leave empty to clear:',
+        defaultDue
+      );
+      if (input === null) return;
+      const value = input.trim();
+      const payload = { dueAt: value };
+      if (!value) {
+        payload.dueAt = '';
+      }
+      try {
+        await fetchJSON(`/api/team/tasks/${encodeURIComponent(taskId)}`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload)
+        });
+        setStatus('Deadline updated.', 'success');
+        await refreshProfile();
+        await refreshTasks();
+      } catch (err) {
+        const errorCode = err.payload?.error || 'update_failed';
+        const messages = {
+          invalid_status: 'Due date was not accepted.',
+          forbidden: 'You do not have permission to change the deadline.',
+          update_failed: 'Could not update deadline.'
+        };
+        setStatus(messages[errorCode] || 'Could not update deadline.', 'error');
+      }
+      return;
+    }
+    if (action === 'delete-task') {
+      if (!elevated) {
+        setStatus('Only leads and mentors can delete tasks.', 'error');
+        return;
+      }
+      if (!confirm('Delete this task? This action cannot be undone.')) return;
+      try {
+        await fetchJSON(`/api/team/tasks/${encodeURIComponent(taskId)}`, {
+          method: 'DELETE'
+        });
+        setStatus('Task deleted.', 'success');
+        await refreshProfile();
+        await refreshTasks();
+      } catch (err) {
+        const errorCode = err.payload?.error || 'delete_failed';
+        const messages = {
+          forbidden: 'You do not have permission to delete this task.',
+          task_not_found: 'Task was already deleted.',
+          delete_failed: 'Could not delete task.'
+        };
+        setStatus(messages[errorCode] || 'Could not delete task.', 'error');
       }
       return;
     }
@@ -1144,11 +1644,22 @@
   };
 
   const handleCreateTask = async () => {
-    const title = prompt('Task title:', '');
-    if (!title) return;
-    const description = prompt('Describe the task (optional):', '') || '';
-    const dueAt = prompt('Due date (YYYY-MM-DD or leave blank):', '');
-    const payload = { title, description };
+    const titleInput = prompt('Task title:', '');
+    if (titleInput === null) return;
+    const trimmedTitle = titleInput.trim();
+    if (!trimmedTitle) {
+      alert('Task title cannot be empty.');
+      return;
+    }
+    const descriptionInput = prompt('Describe the task (optional):', '');
+    if (descriptionInput === null) return;
+    const description = descriptionInput.trim();
+    const dueAtInput = prompt('Due date (YYYY-MM-DD or leave blank):', '');
+    if (dueAtInput === null) return;
+    const payload = { title: trimmedTitle, description };
+    const role = getMemberRole();
+    const elevated = role === 'lead' || role === 'mentor';
+    const dueAt = dueAtInput.trim();
     if (dueAt) {
       payload.dueAt = dueAt.endsWith('Z') || dueAt.includes('T') ? dueAt : `${dueAt}T09:00:00.000Z`;
     }
@@ -1157,7 +1668,10 @@
         method: 'POST',
         body: JSON.stringify(payload)
       });
-      setStatus('Task created.', 'success');
+      const successMessage = elevated
+        ? 'Task created.'
+        : 'Task submitted to leads & mentors.';
+      setStatus(successMessage, 'success');
       await refreshProfile();
       await refreshTasks();
     } catch (err) {
@@ -1166,7 +1680,7 @@
         missing_title: 'Give the task a title.',
         invalid_owner: 'One of the selected owners is invalid.',
         invalid_department: 'Select a valid department before creating tasks.',
-        forbidden: 'Only leads can create tasks.',
+        forbidden: 'You do not have permission to create tasks.',
         create_failed: 'Could not create the task.'
       };
       setStatus(messages[errorCode] || 'Could not create the task.', 'error');

@@ -399,6 +399,7 @@ const sanitizeTeamMember = (member) => {
     displayName: member.displayName || '',
     email: member.email || '',
     role: member.role || '',
+    roleNormalized: member.roleNormalized || normalizeRole(member.role),
     loginId: member.loginId || '',
     departmentId: member.departmentId || ''
   };
@@ -425,6 +426,7 @@ const sanitizeTeamTask = (
   { departmentMap, memberMap, departmentColors, currentMemberId, currentMemberRole }
 ) => {
   if (!task || typeof task !== 'object') return null;
+  const currentRoleNormalized = normalizeRole(currentMemberRole);
   const department = departmentMap.get(task.departmentId);
   const owners = Array.isArray(task.ownerIds) ? task.ownerIds : [];
   const ownerSummaries = owners.map((ownerId) => {
@@ -437,10 +439,15 @@ const sanitizeTeamTask = (
   });
   const departmentColor = departmentColors.get(task.departmentId) || '#7be04a';
   const isMine = Boolean(currentMemberId && owners.includes(currentMemberId));
-  const isLead = currentMemberRole === 'lead';
+  const isElevated = currentRoleNormalized === 'lead' || currentRoleNormalized === 'mentor';
   const hasOwners = owners.length > 0;
-  const canClaim = Boolean(currentMemberId && !isMine && (!hasOwners || isLead));
-  const canUnclaim = Boolean(currentMemberId && (isMine || isLead));
+  const canClaim = Boolean(currentMemberId && !isMine && (!hasOwners || isElevated));
+  const canUnclaim = Boolean(currentMemberId && (isMine || isElevated));
+  const restrictedRoles = Array.isArray(task.restrictedRoles) ? task.restrictedRoles : [];
+  const allowedMemberIds = Array.isArray(task.allowedMemberIds) ? task.allowedMemberIds : [];
+  const isRestricted = restrictedRoles.length > 0;
+  const isCreator = Boolean(currentMemberId && task.createdBy && task.createdBy === currentMemberId);
+  const canManage = isElevated;
   const lastUpdateMember =
     task.lastUpdate?.memberId && memberMap.has(task.lastUpdate.memberId)
       ? sanitizeTeamMember(memberMap.get(task.lastUpdate.memberId))
@@ -460,6 +467,10 @@ const sanitizeTeamTask = (
     createdBy: task.createdBy || '',
     createdAt: task.createdAt || '',
     checklist: Array.isArray(task.checklist) ? task.checklist : [],
+    restrictedRoles,
+    allowedMemberIds,
+    isRestricted,
+    isCreator,
     updatesCount: typeof task.updatesCount === 'number' ? task.updatesCount : 0,
     lastUpdateAt: task.lastUpdate?.createdAt || task.createdAt || '',
     lastUpdate: task.lastUpdate
@@ -475,8 +486,29 @@ const sanitizeTeamTask = (
     isMine,
     canClaim,
     canUnclaim,
-    hasOwners
+    hasOwners,
+    canEdit: canManage,
+    canDelete: canManage,
+    canUpdateDeadline: canManage,
+    canManage
   };
+};
+
+const canMemberViewTask = (task, member) => {
+  if (!task) return false;
+  const restrictedRoles = Array.isArray(task.restrictedRoles) ? task.restrictedRoles : [];
+  if (!restrictedRoles.length) {
+    return true;
+  }
+  const memberRole = member?.roleNormalized || normalizeRole(member?.role);
+  if (restrictedRoles.includes(memberRole)) {
+    return true;
+  }
+  const allowedMemberIds = Array.isArray(task.allowedMemberIds) ? task.allowedMemberIds : [];
+  if (member?.id && allowedMemberIds.includes(member.id)) {
+    return true;
+  }
+  return false;
 };
 
 const sanitizeTeamTaskUpdate = (update, memberMap) => {
@@ -659,6 +691,17 @@ const buildDepartmentColorMap = (departments) => {
   return map;
 };
 
+const normalizeRole = (role) =>
+  typeof role === 'string' && role.trim() ? role.trim().toLowerCase() : '';
+
+const hasRole = (member, roles = []) => {
+  if (!member) return false;
+  const normalized = member.roleNormalized || normalizeRole(member.role);
+  return roles.includes(normalized);
+};
+
+const isLeadOrMentor = (member) => hasRole(member, ['lead', 'mentor']);
+
 const mapTeamDepartmentDoc = (doc) => {
   const data = doc.data() || {};
   return {
@@ -674,6 +717,8 @@ const mapTeamMemberDoc = (doc) => {
   const data = doc.data() || {};
   const loginId = data.login_id || data.login || doc.id;
   const displayName = data.display_name || data.name || loginId || doc.id;
+  const rawRole = typeof data.role === 'string' ? data.role.trim() : data.role || '';
+  const normalizedRole = normalizeRole(rawRole);
   const explicitIdentifiers = Array.isArray(data.identifiers) ? data.identifiers : [];
   const identifierSet = new Set(
     [
@@ -696,7 +741,8 @@ const mapTeamMemberDoc = (doc) => {
     loginIdNormalized: normalizedLoginId,
     displayNameNormalized: normalizeKey(displayName),
     accessCode: data.access_code || '',
-    role: data.role || '',
+    role: rawRole,
+    roleNormalized: normalizedRole,
     departmentId: data.department_id || '',
     email: data.email || '',
     active: data.active !== false,
@@ -713,6 +759,24 @@ const mapTeamMemberDoc = (doc) => {
 
 const mapTeamTaskDoc = (doc) => {
   const data = doc.data() || {};
+  const restrictedRoles = Array.isArray(data.restricted_roles)
+    ? Array.from(
+        new Set(
+          data.restricted_roles
+            .map((value) => normalizeRole(value))
+            .filter(Boolean)
+        )
+      )
+    : [];
+  const allowedMemberIds = Array.isArray(data.allowed_member_ids)
+    ? Array.from(
+        new Set(
+          data.allowed_member_ids
+            .map((value) => (typeof value === 'string' ? value.trim() : ''))
+            .filter(Boolean)
+        )
+      )
+    : [];
   return {
     id: doc.id,
     title: data.title || '',
@@ -725,6 +789,8 @@ const mapTeamTaskDoc = (doc) => {
     createdBy: data.created_by || '',
     createdAt: toIsoString(data.created_at || data.created_at_ts),
     checklist: Array.isArray(data.checklist) ? data.checklist : [],
+    restrictedRoles,
+    allowedMemberIds,
     updatesCount: typeof data.updates_count === 'number' ? data.updates_count : 0,
     lastUpdate: data.last_update_id
       ? {
@@ -811,6 +877,16 @@ const fetchTaskUpdates = async (taskId) => {
       (a, b) =>
         new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
     );
+};
+
+const deleteTaskUpdates = async (taskId) => {
+  const snapshot = await teamTaskUpdatesCollection.where('task_id', '==', taskId).get();
+  if (snapshot.empty) return;
+  const batch = firestore.batch();
+  snapshot.docs.forEach((doc) => {
+    batch.delete(doc.ref);
+  });
+  await batch.commit();
 };
 
 const fetchTeamEvents = async () => {
@@ -1311,6 +1387,9 @@ const teamAuth = async (req, res, next) => {
     }
   }
   req.teamMember = member;
+  if (!req.teamMember.roleNormalized) {
+    req.teamMember.roleNormalized = normalizeRole(req.teamMember.role);
+  }
   req.teamSessionToken = token;
   next();
 };
@@ -1428,7 +1507,8 @@ app.get('/api/team/tasks', teamAuth, async (req, res) => {
     ]);
     const departmentMap = new Map(departments.map((dept) => [dept.id, dept]));
     const departmentColors = buildDepartmentColorMap(departments);
-    let results = [...tasks];
+    const requester = req.teamMember;
+    let results = tasks.filter((task) => canMemberViewTask(task, requester));
     if (department && typeof department === 'string') {
       const departmentIds = department
         .split(',')
@@ -1459,7 +1539,8 @@ app.get('/api/team/tasks', teamAuth, async (req, res) => {
       memberMap,
       departmentColors,
       currentMemberId: req.teamMember.id,
-      currentMemberRole: req.teamMember.role
+      currentMemberRole: req.teamMember.role || '',
+      currentMemberRoleNormalized: req.teamMember.roleNormalized || normalizeRole(req.teamMember.role)
     };
     const payload = results
       .map((task) => sanitizeTeamTask(task, context))
@@ -1480,6 +1561,10 @@ app.get('/api/team/tasks/:id/updates', teamAuth, async (req, res) => {
     const taskSnap = await teamTasksCollection.doc(taskId).get();
     if (!taskSnap.exists) {
       return res.status(404).json({ ok: false, error: 'task_not_found' });
+    }
+    const task = mapTeamTaskDoc(taskSnap);
+    if (!canMemberViewTask(task, req.teamMember)) {
+      return res.status(403).json({ ok: false, error: 'forbidden' });
     }
     const [updates, { map: memberMap }] = await Promise.all([
       fetchTaskUpdates(taskId),
@@ -1511,6 +1596,9 @@ app.post('/api/team/tasks/:id/updates', teamAuth, async (req, res) => {
       return res.status(404).json({ ok: false, error: 'task_not_found' });
     }
     const task = mapTeamTaskDoc(taskSnap);
+    if (!canMemberViewTask(task, req.teamMember)) {
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+    }
     const { note = '', status } = req.body || {};
     const trimmedNote = typeof note === 'string' ? note.trim() : '';
     if (!trimmedNote) {
@@ -1522,8 +1610,8 @@ app.post('/api/team/tasks/:id/updates', teamAuth, async (req, res) => {
       return res.status(400).json({ ok: false, error: 'invalid_status' });
     }
     const isOwner = Array.isArray(task.ownerIds) && task.ownerIds.includes(req.teamMember.id);
-    const isLead = req.teamMember.role === 'lead';
-    if (!isOwner && !isLead) {
+    const isElevated = isLeadOrMentor(req.teamMember);
+    if (!isOwner && !isElevated) {
       return res.status(403).json({ ok: false, error: 'forbidden' });
     }
     const createdAtIso = new Date().toISOString();
@@ -1561,7 +1649,8 @@ app.post('/api/team/tasks/:id/updates', teamAuth, async (req, res) => {
       memberMap,
       departmentColors,
       currentMemberId: req.teamMember.id,
-      currentMemberRole: req.teamMember.role
+      currentMemberRole: req.teamMember.role || '',
+      currentMemberRoleNormalized: req.teamMember.roleNormalized || normalizeRole(req.teamMember.role)
     };
     res.status(201).json({
       ok: true,
@@ -1576,7 +1665,9 @@ app.post('/api/team/tasks/:id/updates', teamAuth, async (req, res) => {
 
 app.post('/api/team/tasks', teamAuth, async (req, res) => {
   const requester = req.teamMember;
-  if (requester.role !== 'lead') {
+  const requesterRole = requester.roleNormalized || normalizeRole(requester.role);
+  const isElevated = requesterRole === 'lead' || requesterRole === 'mentor';
+  if (!isElevated && requesterRole !== 'member') {
     return res.status(403).json({ ok: false, error: 'forbidden' });
   }
   const { title = '', description = '', departmentId = '', ownerIds, dueAt, priority } =
@@ -1604,8 +1695,10 @@ app.post('/api/team/tasks', teamAuth, async (req, res) => {
       normalizedOwnerIds = ownerIds
         .map((value) => (typeof value === 'string' ? value.trim() : ''))
         .filter(Boolean);
-    } else {
+    } else if (isElevated) {
       normalizedOwnerIds = [requester.id];
+    } else {
+      normalizedOwnerIds = [];
     }
     const missingOwners = normalizedOwnerIds.filter((ownerId) => !memberMap.has(ownerId));
     if (missingOwners.length) {
@@ -1614,6 +1707,8 @@ app.post('/api/team/tasks', teamAuth, async (req, res) => {
     const nowIso = new Date().toISOString();
     const dueAtIso = dueAt ? toIsoString(new Date(dueAt)) || '' : '';
     const taskRef = teamTasksCollection.doc();
+    const restrictedRoles = isElevated ? [] : ['lead', 'mentor'];
+    const allowedMemberIds = [];
     await taskRef.set({
       title: trimmedTitle,
       description: trimmedDescription,
@@ -1627,7 +1722,9 @@ app.post('/api/team/tasks', teamAuth, async (req, res) => {
       created_at: nowIso,
       created_at_ts: FieldValue.serverTimestamp(),
       checklist: [],
-      updates_count: 0
+      updates_count: 0,
+      restricted_roles: restrictedRoles,
+      allowed_member_ids: allowedMemberIds
     });
     const createdTaskSnap = await taskRef.get();
     const createdTask = mapTeamTaskDoc(createdTaskSnap);
@@ -1637,7 +1734,8 @@ app.post('/api/team/tasks', teamAuth, async (req, res) => {
       memberMap,
       departmentColors,
       currentMemberId: requester.id,
-      currentMemberRole: requester.role
+      currentMemberRole: requester.role || '',
+      currentMemberRoleNormalized: requester.roleNormalized || normalizeRole(requester.role)
     };
     res.status(201).json({
       ok: true,
@@ -1666,11 +1764,14 @@ app.patch('/api/team/tasks/:id', teamAuth, async (req, res) => {
     }
     const task = mapTeamTaskDoc(taskSnap);
     const requester = req.teamMember;
-    const isLead = requester.role === 'lead';
+    if (!canMemberViewTask(task, requester)) {
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+    }
+    const isElevated = isLeadOrMentor(requester);
     const isOwner = Array.isArray(task.ownerIds) && task.ownerIds.includes(requester.id);
     const allowedFields = ['status'];
     const bodyKeys = Object.keys(req.body || {});
-    if (!isLead) {
+    if (!isElevated) {
       if (!isOwner || bodyKeys.some((key) => !allowedFields.includes(key))) {
         return res.status(403).json({ ok: false, error: 'forbidden' });
       }
@@ -1684,7 +1785,7 @@ app.patch('/api/team/tasks/:id', teamAuth, async (req, res) => {
       }
       updates.status = normalizedStatus;
     }
-    if (isLead && Array.isArray(req.body?.ownerIds)) {
+    if (isElevated && Array.isArray(req.body?.ownerIds)) {
       const normalizedOwnerIds = req.body.ownerIds
         .map((value) => (typeof value === 'string' ? value.trim() : ''))
         .filter(Boolean);
@@ -1694,20 +1795,30 @@ app.patch('/api/team/tasks/:id', teamAuth, async (req, res) => {
       }
       updates.owner_ids = normalizedOwnerIds;
     }
-    if (isLead && typeof req.body?.priority === 'string' && req.body.priority.trim()) {
+    if (isElevated && typeof req.body?.priority === 'string' && req.body.priority.trim()) {
       updates.priority = req.body.priority.trim();
     }
-    if (isLead && typeof req.body?.dueAt === 'string') {
+    if (isElevated && typeof req.body?.dueAt === 'string') {
       const dueAtIso = req.body.dueAt.trim()
         ? toIsoString(new Date(req.body.dueAt.trim())) || ''
         : '';
       updates.due_at = dueAtIso;
       updates.due_at_ts = dueAtIso ? new Date(dueAtIso) : null;
     }
-    if (isLead && Array.isArray(req.body?.checklist)) {
+    if (isElevated && Array.isArray(req.body?.checklist)) {
       updates.checklist = req.body.checklist
         .map((item) => (typeof item === 'string' ? item.trim() : ''))
         .filter(Boolean);
+    }
+    if (isElevated && typeof req.body?.title === 'string') {
+      const trimmedTitle = req.body.title.trim();
+      if (!trimmedTitle) {
+        return res.status(400).json({ ok: false, error: 'missing_title' });
+      }
+      updates.title = trimmedTitle;
+    }
+    if (isElevated && typeof req.body?.description === 'string') {
+      updates.description = req.body.description.trim();
     }
     if (!Object.keys(updates).length) {
       const departmentMap = new Map(departments.map((dept) => [dept.id, dept]));
@@ -1747,6 +1858,34 @@ app.patch('/api/team/tasks/:id', teamAuth, async (req, res) => {
   }
 });
 
+app.delete('/api/team/tasks/:id', teamAuth, async (req, res) => {
+  const taskId = req.params.id?.trim();
+  if (!taskId) {
+    return res.status(400).json({ ok: false, error: 'missing_task_id' });
+  }
+  try {
+    const requester = req.teamMember;
+    if (!isLeadOrMentor(requester)) {
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+    }
+    const taskRef = teamTasksCollection.doc(taskId);
+    const taskSnap = await taskRef.get();
+    if (!taskSnap.exists) {
+      return res.status(404).json({ ok: false, error: 'task_not_found' });
+    }
+    const task = mapTeamTaskDoc(taskSnap);
+    if (!canMemberViewTask(task, requester)) {
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+    }
+    await deleteTaskUpdates(taskId);
+    await taskRef.delete();
+    res.json({ ok: true, deleted: true });
+  } catch (err) {
+    console.error('Failed to delete team task', err);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
 app.post('/api/team/tasks/:id/claim', teamAuth, async (req, res) => {
   const taskId = req.params.id?.trim();
   if (!taskId) {
@@ -1764,13 +1903,16 @@ app.post('/api/team/tasks/:id/claim', teamAuth, async (req, res) => {
     }
     const task = mapTeamTaskDoc(taskSnap);
     const requester = req.teamMember;
-    const isLead = requester.role === 'lead';
+    if (!canMemberViewTask(task, requester)) {
+      return res.status(403).json({ ok: false, error: 'forbidden' });
+    }
+    const isElevated = isLeadOrMentor(requester);
     const action =
       typeof req.body?.action === 'string' ? req.body.action.trim().toLowerCase() : 'claim';
     const requestedMemberIdRaw =
       typeof req.body?.memberId === 'string' ? req.body.memberId.trim() : '';
     const targetMemberId =
-      requestedMemberIdRaw && isLead ? requestedMemberIdRaw : requester.id;
+      requestedMemberIdRaw && isElevated ? requestedMemberIdRaw : requester.id;
     if (!memberMap.has(targetMemberId)) {
       return res.status(404).json({ ok: false, error: 'member_not_found' });
     }
@@ -1787,11 +1929,12 @@ app.post('/api/team/tasks/:id/claim', teamAuth, async (req, res) => {
           memberMap,
           departmentColors,
           currentMemberId: requester.id,
-          currentMemberRole: requester.role
+          currentMemberRole: requester.role || '',
+          currentMemberRoleNormalized: requester.roleNormalized || normalizeRole(requester.role)
         };
         return res.json({ ok: true, task: sanitizeTeamTask(task, context) });
       }
-      if (owners.length && !isLead) {
+      if (owners.length && !isElevated) {
         return res.status(409).json({ ok: false, error: 'already_claimed' });
       }
       owners.push(targetMemberId);
@@ -1799,7 +1942,7 @@ app.post('/api/team/tasks/:id/claim', teamAuth, async (req, res) => {
       if (!isTargetOwner) {
         return res.status(404).json({ ok: false, error: 'not_assigned' });
       }
-      if (targetMemberId !== requester.id && !isLead) {
+      if (targetMemberId !== requester.id && !isElevated) {
         return res.status(403).json({ ok: false, error: 'forbidden' });
       }
       const index = owners.indexOf(targetMemberId);
@@ -1823,7 +1966,8 @@ app.post('/api/team/tasks/:id/claim', teamAuth, async (req, res) => {
       memberMap,
       departmentColors,
       currentMemberId: requester.id,
-      currentMemberRole: requester.role
+      currentMemberRole: requester.role || '',
+      currentMemberRoleNormalized: requester.roleNormalized || normalizeRole(requester.role)
     };
     res.json({
       ok: true,

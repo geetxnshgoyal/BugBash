@@ -263,6 +263,16 @@ export const teamMembers = [
     accessCode: 'vivaan@1!',
     identifiers: ['vivaan']
   },
+    {
+    id: 'mem-geetansh',
+    displayName: 'geetansh',
+    loginId: 'geetansh',
+    email: '',
+    role: 'Mentor',
+    departmentId: '',
+    accessCode: 'geetansh',
+    identifiers: ['geetansh']
+  },
   {
     id: 'mem-abhijit',
     displayName: 'Abhijit',
