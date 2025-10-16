@@ -692,8 +692,6 @@
 
 <script>
 (() => {
-  const STORAGE_KEY = 'bugbash_team_token';
-  const STORAGE_CREDENTIALS_KEY = 'bugbash_team_creds';
   const state = {
     token: null,
     member: null,
@@ -709,7 +707,6 @@
     people: new Map()
   };
   let lastMemeIndex = -1;
-  let isRestoringSession = false;
 
   const els = {
     loginPanel: document.getElementById('loginPanel'),
@@ -757,43 +754,6 @@
   const lookupPerson = (id) => {
     if (!id) return null;
     return state.people.get(id) || null;
-  };
-
-  const getStoredCredentials = () => {
-    try {
-      const raw = localStorage.getItem(STORAGE_CREDENTIALS_KEY);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object' && parsed.identifier && parsed.code) {
-        return parsed;
-      }
-    } catch (err) {
-      console.warn('Failed to read stored credentials', err);
-    }
-    return null;
-  };
-
-  const saveCredentials = (identifier, code) => {
-    try {
-      if (!identifier || !code) {
-        localStorage.removeItem(STORAGE_CREDENTIALS_KEY);
-        return;
-      }
-      localStorage.setItem(
-        STORAGE_CREDENTIALS_KEY,
-        JSON.stringify({ identifier, code })
-      );
-    } catch (err) {
-      console.warn('Failed to save credentials', err);
-    }
-  };
-
-  const clearStoredCredentials = () => {
-    try {
-      localStorage.removeItem(STORAGE_CREDENTIALS_KEY);
-    } catch (err) {
-      console.warn('Failed to clear stored credentials', err);
-    }
   };
 
   const escapeHTML = (value = '') =>
@@ -924,35 +884,6 @@
   window.addEventListener('scroll', closeStatusMenu, true);
   window.addEventListener('resize', closeStatusMenu, true);
 
-  const attemptAutoLogin = async () => {
-    if (isRestoringSession) return false;
-    const stored = getStoredCredentials();
-    if (!stored?.identifier || !stored?.code) return false;
-    isRestoringSession = true;
-    try {
-      setStatus('Restoring session...');
-      const payload = await fetchJSON('/api/team/login', {
-        method: 'POST',
-        body: JSON.stringify({ email: stored.identifier, code: stored.code }),
-        skipAuth: true
-      });
-      setToken(payload.token);
-      state.member = payload.member;
-      state.department = payload.department;
-      state.stats = payload.stats || {};
-      await loadInitialData();
-      setStatus('');
-      return true;
-    } catch (err) {
-      console.warn('Auto-login failed', err);
-      clearStoredCredentials();
-      setStatus('');
-      return false;
-    } finally {
-      isRestoringSession = false;
-    }
-  };
-
   const MEMES = [
     {
       text: 'Deploying on Fridays? That’s a plot twist, not a roadmap.',
@@ -1004,11 +935,6 @@
 
   const setToken = (token) => {
     state.token = token;
-    if (token) {
-      localStorage.setItem(STORAGE_KEY, token);
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
-    }
   };
 
   const clearStatus = () => {
@@ -1387,11 +1313,6 @@
       console.error(err);
       const errorCode = err?.payload?.error || '';
       if (errorCode === 'invalid_session' || errorCode === 'unauthorized') {
-        const restored = await attemptAutoLogin();
-        if (restored) {
-          return;
-        }
-        clearStoredCredentials();
         setToken(null);
         showLogin('Session expired. Please sign in again.');
         return;
@@ -1403,11 +1324,18 @@
   const handleLogin = async (event) => {
     event.preventDefault();
     const formData = new FormData(els.loginForm);
-    const identifier = formData.get('identifier');
-    const code = formData.get('code');
+    const identifierRaw = (formData.get('identifier') || '').toString();
+    const codeRaw = (formData.get('code') || '').toString();
+    const identifier = identifierRaw.trim().replace(/\s+/g, ' ');
+    const code = codeRaw.trim();
     if (!identifier || !code) {
       els.loginMessage.hidden = false;
       els.loginMessage.textContent = 'Enter both your name and access code.';
+      return;
+    }
+    if (!/^[A-Za-z\s]+$/.test(identifier)) {
+      els.loginMessage.hidden = false;
+      els.loginMessage.textContent = 'Use letters and spaces only for your name.';
       return;
     }
     els.loginSubmit.disabled = true;
@@ -1419,10 +1347,6 @@
         body: JSON.stringify({ email: identifier, code }),
         skipAuth: true
       });
-      const normalizedIdentifier =
-        typeof identifier === 'string' ? identifier.trim() : '';
-      const normalizedCode = typeof code === 'string' ? code.trim() : '';
-      saveCredentials(normalizedIdentifier, normalizedCode);
       setToken(payload.token);
       state.member = payload.member;
       state.department = payload.department;
@@ -1441,9 +1365,6 @@
       };
       els.loginMessage.hidden = false;
       els.loginMessage.textContent = messages[errorCode] || 'Could not sign in. Try again.';
-      if (errorCode === 'invalid_credentials' || errorCode === 'member_not_found') {
-        clearStoredCredentials();
-      }
     } finally {
       els.loginSubmit.disabled = false;
       els.loginSubmit.textContent = 'Sign in';
@@ -1458,7 +1379,6 @@
     } finally {
       setToken(null);
       state.member = null;
-      clearStoredCredentials();
       showLogin('Signed out.');
     }
   };
@@ -1808,19 +1728,7 @@
   });
   els.newTaskBtn.addEventListener('click', handleCreateTask);
 
-  const init = async () => {
-    const storedToken = localStorage.getItem(STORAGE_KEY);
-    if (storedToken) {
-      setToken(storedToken);
-      await loadInitialData();
-      return;
-    }
-    const restored = await attemptAutoLogin();
-    if (!restored) {
-      showLogin();
-    }
-  };
-  init();
+  showLogin();
 })();
 </script>
 </body>
