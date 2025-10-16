@@ -481,13 +481,13 @@
   <main class="layout">
     <section class="panel" id="loginPanel">
       <h1>Team Dashboard</h1>
-      <p class="muted">Private workspace for NST organizers. Sign in with your name and the latest access code.</p>
+      <p class="muted">Private workspace for NST organizers. Sign in with your name and the latest password.</p>
       <form id="loginForm" autocomplete="off">
         <label>Name
           <input type="text" name="identifier" required placeholder="Enter your name" autocomplete="off" pattern="[A-Za-z ]+" title="Use letters and spaces only">
         </label>
-        <label>Access code
-          <input type="password" name="code" required placeholder="Access code">
+        <label>Password
+          <input type="password" name="code" required placeholder="Password">
         </label>
         <button type="submit" id="loginSubmit">Sign in</button>
       </form>
@@ -1342,7 +1342,7 @@
     const code = codeRaw.trim();
     if (!identifier || !code) {
       els.loginMessage.hidden = false;
-      els.loginMessage.textContent = 'Enter both your name and access code.';
+      els.loginMessage.textContent = 'Enter both your name and password.';
       return;
     }
     if (!/^[A-Za-z\s]+$/.test(identifier)) {
@@ -1368,9 +1368,9 @@
     } catch (err) {
       const errorCode = err.payload?.error || 'signin_failed';
       const messages = {
-        missing_credentials: 'Enter both your name and access code.',
+        missing_credentials: 'Enter both your name and password.',
         member_not_found: 'We could not find that name. Check the spelling.',
-        invalid_credentials: 'Access code did not match. Check the latest code.',
+        invalid_credentials: 'Password did not match. Check the latest password.',
         access_not_configured: 'Access for this name is not configured yet.',
         team_dashboard_disabled: 'Team dashboard is disabled right now.',
         signin_failed: 'Sign-in failed. Try again.'
