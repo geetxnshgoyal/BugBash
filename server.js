@@ -1119,7 +1119,8 @@ app.get('/robots.txt', (_req, res) => {
 app.get('/sitemap.xml', (_req, res) => {
   const sitemapPages = [
     { loc: SITE_URL, changefreq: 'daily', priority: '1.0', file: 'index.html' },
-    { loc: `${SITE_URL}/register`, changefreq: 'weekly', priority: '0.8', file: 'register.html' }
+    { loc: `${SITE_URL}/register`, changefreq: 'weekly', priority: '0.8', file: 'register.html' },
+    { loc: `${SITE_URL}/favicon.ico`, changefreq: 'monthly', priority: '0.1', file: path.join('assets', 'favicon.ico') }
   ];
   const xml = [
     '<?xml version="1.0" encoding="UTF-8"?>',
