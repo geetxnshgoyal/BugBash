@@ -94,9 +94,7 @@
   :root{--bg1:#0f1720;--bg2:#0b1020;--accent:#7be04a;--glass:rgba(255,255,255,0.06);
     --muted:#97a0ad;--glass2:rgba(255,255,255,0.03);--white:#f7f8fa;--shadow:0 12px 30px rgba(2,6,23,0.6);
     --mono:'Segoe UI',Roboto,Helvetica,Arial,system-ui}
-  html,body{height:100%;margin:0;font-family:var(--mono);background:
-    radial-gradient(1200px 600px at 10% 10%, rgba(123,224,74,0.03), transparent),
-    linear-gradient(180deg,var(--bg1),var(--bg2));color:var(--white)}
+  html,body{height:100%;margin:0;font-family:var(--mono);background-color:var(--bg2);color:var(--white)}
   #bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.65}
   .wrap{position:relative;z-index:2;max-width:1200px;margin:18px auto 32px;padding:24px}
   /* Hero identity */
@@ -533,10 +531,7 @@ addEventListener('resize',resize);
 
 const draw=()=>{
   ctx.clearRect(0,0,width,height);
-  const gradient=ctx.createLinearGradient(0,0,width,height);
-  gradient.addColorStop(0,'rgba(11,16,32,0.16)');
-  gradient.addColorStop(1,'rgba(2,4,10,0.22)');
-  ctx.fillStyle=gradient;
+  ctx.fillStyle='rgba(8,14,26,0.18)';
   ctx.fillRect(0,0,width,height);
 
   for(const pulse of pulses){

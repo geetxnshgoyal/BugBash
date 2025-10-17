@@ -1985,6 +1985,8 @@ app.patch('/api/team/tasks/:id', teamAuth, async (req, res) => {
     }
     const task = mapTeamTaskDoc(taskSnap);
     const requester = req.teamMember;
+    const departmentMap = new Map(departments.map((dept) => [dept.id, dept]));
+    const departmentColors = buildDepartmentColorMap(departments);
     if (!canMemberViewTask(task, requester)) {
       return res.status(403).json({ ok: false, error: 'forbidden' });
     }

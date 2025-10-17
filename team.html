@@ -22,9 +22,7 @@
     min-height:100vh;
     font-family:var(--font);
     color:var(--white);
-    background:
-      radial-gradient(1200px 600px at 10% 10%,rgba(123,224,74,0.05),transparent),
-      linear-gradient(180deg,var(--bg1),var(--bg2));
+    background-color:var(--bg2);
     position:relative;
     overflow-x:hidden;
   }
@@ -904,10 +902,7 @@
   const random = (min, max) => Math.random() * (max - min) + min;
 
   const paintStatic = () => {
-    const gradient = ctx.createLinearGradient(0, 0, width, height);
-    gradient.addColorStop(0, 'rgba(11,16,32,0.18)');
-    gradient.addColorStop(1, 'rgba(2,8,18,0.22)');
-    ctx.fillStyle = gradient;
+    ctx.fillStyle = 'rgba(8,14,26,0.18)';
     ctx.fillRect(0, 0, width, height);
   };
 
