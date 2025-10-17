@@ -1103,7 +1103,7 @@ app.use((req, res, next) => {
 });
 
 app.get('/favicon.ico', (_req, res) => {
-  res.type('image/png').sendFile(path.join(__dirname, 'assets', 'bugbash_logo.png'));
+  res.type('image/png').sendFile(path.join(__dirname, 'assets', 'favicon-48.png'));
 });
 
 app.get('/robots.txt', (_req, res) => {
