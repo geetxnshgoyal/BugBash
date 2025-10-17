@@ -115,7 +115,7 @@
   .logo-stage{display:flex;align-items:center;justify-content:center;text-align:center;padding:24px 0 8px;position:relative}
   .logo-stage__inner{display:flex;flex-direction:column;align-items:center;gap:22px;max-width:520px}
   .logo-word{display:inline-flex;gap:12px;font-size:52px;font-weight:900;text-transform:uppercase;letter-spacing:.16em;color:var(--white)}
-  .logo-letter{position:relative;display:inline-block;opacity:0;transform:translateY(18px) scale(.9);animation:letter-pop 3.6s ease-in-out infinite;animation-delay:calc(var(--index)*0.18s);padding:0 1px}
+  .logo-letter{position:relative;display:inline-block;opacity:1;transform:translateY(0) scale(1);animation:letter-pop 3.2s ease-in-out infinite;animation-delay:calc(var(--index)*0.18s);animation-fill-mode:both;padding:0 1px}
   .logo-letter::before{content:attr(data-char);position:absolute;left:0;top:0;color:rgba(255,59,129,0.55);opacity:.45;transform:translate(-4px,4px);animation:letter-glow 3.6s ease-in-out infinite reverse;animation-delay:calc(var(--index)*0.18s)}
   .logo-letter::after{content:attr(data-char);position:absolute;left:0;top:0;color:rgba(51,194,255,0.65);opacity:.45;transform:translate(4px,-4px);animation:letter-glow 3.6s ease-in-out infinite;animation-delay:calc(var(--index)*0.18s)}
   .logo-letter[data-char=""]{width:18px;animation:none;opacity:1}
@@ -248,7 +248,7 @@
   }
   @keyframes glitch-top{0%{transform:translate(4px,-2px)}45%{transform:translate(1px,1px)}100%{transform:translate(4px,-2px)}}
   @keyframes glitch-bottom{0%{transform:translate(-5px,3px)}40%{transform:translate(-1px,6px)}100%{transform:translate(-5px,3px)}}
-  @keyframes letter-pop{0%{opacity:0;transform:translateY(18px) scale(.85)}40%{opacity:1;transform:translateY(-4px) scale(1.05)}65%{transform:translateY(0) scale(1)}80%{opacity:1;transform:translateY(2px) scale(.98)}100%{opacity:0;transform:translateY(18px) scale(.9)}}
+  @keyframes letter-pop{0%{opacity:1;transform:translateY(0) scale(1)}35%{opacity:1;transform:translateY(-3px) scale(1.04)}55%{opacity:1;transform:translateY(2px) scale(0.98)}100%{opacity:1;transform:translateY(0) scale(1)}}
   @keyframes letter-glow{0%,100%{opacity:.25}45%{opacity:.85}}
   @keyframes panel-glow{0%,100%{opacity:0;transform:scale(0.7)}40%{opacity:.35;transform:scale(1)}}
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
@@ -263,7 +263,7 @@
 <canvas id="bg-canvas"></canvas>
 
 <div class="wrap">
-  <section class="logo-stage" aria-labelledby="logo-heading" data-animate>
+  <section class="logo-stage is-visible" aria-labelledby="logo-heading" data-animate>
     <div class="logo-stage__inner">
       <a class="crest crest--xl" href="/register" aria-label="Go to BugBash registration">
         <span class="crest-ring" aria-hidden="true"></span>
@@ -301,7 +301,7 @@
   </section>
 
   <main class="hero">
-    <section class="panel" data-animate aria-labelledby="hero-title">
+    <section class="panel is-visible" data-animate aria-labelledby="hero-title">
       <h1 id="hero-title" class="title">
         <span class="glitch glitch--hack" data-text="HACK">HACK</span>
         <span class="glitch glitch--break" data-text="BREAK">BREAK</span>
@@ -310,7 +310,7 @@
       <p class="lead">BugBash 2025 is Bengaluru’s overnight student hackathon where aviation, AI, hardware, fintech, health, and immersive media builders sprint side by side. Sign up solo and we’ll slot you into a squad of 3–5 so every team ships something real by dawn.</p>
 
       <div class="cards cards--xl">
-        <div class="card card--feature" data-animate>
+        <div class="card card--feature is-visible" data-animate>
           <h4>Tracks unlocked</h4>
           <ul class="card-list">
             <li>Aviation ops, UAV telemetry, and ground coordination</li>
@@ -321,7 +321,7 @@
             <li>Immersive media, spatial computing, and experience tech</li>
           </ul>
         </div>
-        <div class="card card--feature" data-animate>
+        <div class="card card--feature is-visible" data-animate>
           <h4>What we provide</h4>
           <ul class="card-list">
             <li>Help desks all night long - bring your own gear and tap mentors when you’re blocked</li>
@@ -331,7 +331,7 @@
             <li>Showcase stage with feedback from partners, founders, and campus community</li>
           </ul>
         </div>
-        <div class="card card--feature" data-animate>
+        <div class="card card--feature is-visible" data-animate>
           <h4>Run of show</h4>
           <ul class="card-list">
             <li>Day 0 evening: badge pickup, kickoff, and track briefings</li>

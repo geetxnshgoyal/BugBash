@@ -117,6 +117,26 @@ const registerMemberAlias = (alias, member) => {
   }
 };
 
+const TEAM_CACHE_TTL_MS = Number(process.env.TEAM_CACHE_TTL_MS || 5000);
+const createCacheEntry = () => ({ data: null, fetchedAt: 0 });
+const isCacheFresh = (entry) =>
+  Boolean(entry?.data) && Date.now() - entry.fetchedAt < TEAM_CACHE_TTL_MS;
+
+let teamDepartmentsCache = createCacheEntry();
+let teamTasksCache = createCacheEntry();
+let teamEventsCache = createCacheEntry();
+let teamMembersCache = { data: null, map: null, fetchedAt: 0 };
+
+const clearTeamDepartmentsCache = () => {
+  teamDepartmentsCache = createCacheEntry();
+};
+const clearTeamTasksCache = () => {
+  teamTasksCache = createCacheEntry();
+};
+const clearTeamEventsCache = () => {
+  teamEventsCache = createCacheEntry();
+};
+
 const toIsoString = (value) => {
   if (!value) return '';
   if (typeof value === 'string') return value;
@@ -964,8 +984,13 @@ const mapTeamEventDoc = (doc) => {
 };
 
 const fetchTeamDepartments = async () => {
+  if (isCacheFresh(teamDepartmentsCache)) {
+    return teamDepartmentsCache.data;
+  }
   const snapshot = await teamDepartmentsCollection.get();
-  return snapshot.docs.map(mapTeamDepartmentDoc);
+  const departments = snapshot.docs.map(mapTeamDepartmentDoc);
+  teamDepartmentsCache = { data: departments, fetchedAt: Date.now() };
+  return departments;
 };
 
 const resetTeamMemberCaches = () => {
@@ -973,16 +998,28 @@ const resetTeamMemberCaches = () => {
   teamMemberIdentifiers.clear();
 };
 
+const clearTeamMembersCache = () => {
+  teamMembersCache = { data: null, map: null, fetchedAt: 0 };
+  resetTeamMemberCaches();
+};
+
 const fetchTeamMembers = async () => {
+  if (isCacheFresh(teamMembersCache)) {
+    return teamMembersCache.data;
+  }
   resetTeamMemberCaches();
   const snapshot = await teamMembersCollection.get();
-  return snapshot.docs.map(mapTeamMemberDoc).filter((member) => member.active);
+  const members = snapshot.docs.map(mapTeamMemberDoc).filter((member) => member.active);
+  teamMembersCache = { data: members, map: null, fetchedAt: Date.now() };
+  return members;
 };
 
 const fetchTeamMembersMap = async () => {
   const members = await fetchTeamMembers();
-  const map = new Map(members.map((member) => [member.id, member]));
-  return { members, map };
+  if (!teamMembersCache.map) {
+    teamMembersCache.map = new Map(members.map((member) => [member.id, member]));
+  }
+  return { members, map: teamMembersCache.map };
 };
 
 const fetchTeamMemberById = async (id) => {
@@ -994,8 +1031,13 @@ const fetchTeamMemberById = async (id) => {
 };
 
 const fetchTeamTasks = async () => {
+  if (isCacheFresh(teamTasksCache)) {
+    return teamTasksCache.data;
+  }
   const snapshot = await teamTasksCollection.get();
-  return snapshot.docs.map(mapTeamTaskDoc);
+  const tasks = snapshot.docs.map(mapTeamTaskDoc);
+  teamTasksCache = { data: tasks, fetchedAt: Date.now() };
+  return tasks;
 };
 
 const fetchTaskUpdates = async (taskId) => {
@@ -1019,8 +1061,13 @@ const deleteTaskUpdates = async (taskId) => {
 };
 
 const fetchTeamEvents = async () => {
+  if (isCacheFresh(teamEventsCache)) {
+    return teamEventsCache.data;
+  }
   const snapshot = await teamEventsCollection.get();
-  return snapshot.docs.map(mapTeamEventDoc);
+  const events = snapshot.docs.map(mapTeamEventDoc);
+  teamEventsCache = { data: events, fetchedAt: Date.now() };
+  return events;
 };
 
 const mapRegistration = (doc) => {
@@ -1055,7 +1102,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// static
 app.get('/favicon.ico', (_req, res) => {
   res.type('image/png').sendFile(path.join(__dirname, 'assets', 'bugbash_logo.png'));
 });
@@ -1071,22 +1117,34 @@ app.get('/robots.txt', (_req, res) => {
 });
 
 app.get('/sitemap.xml', (_req, res) => {
-  const pages = [
-    { loc: SITE_URL, changefreq: 'daily', priority: '1.0' },
-    { loc: `${SITE_URL}/register`, changefreq: 'weekly', priority: '0.8' }
+  const sitemapPages = [
+    { loc: SITE_URL, changefreq: 'daily', priority: '1.0', file: 'index.html' },
+    { loc: `${SITE_URL}/register`, changefreq: 'weekly', priority: '0.8', file: 'register.html' }
   ];
-  const now = new Date().toISOString();
   const xml = [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-    ...pages.map((page) => [
+    ...sitemapPages.map((page) => {
+      let lastmod = new Date().toISOString();
+      if (page.file) {
+        try {
+          const fileStat = fs.statSync(path.join(__dirname, page.file));
+          if (fileStat?.mtime) {
+            lastmod = fileStat.mtime.toISOString();
+          }
+        } catch (err) {
+          console.warn('Sitemap lastmod lookup failed for', page.file, err);
+        }
+      }
+      return [
       '  <url>',
       `    <loc>${page.loc}</loc>`,
-      `    <lastmod>${now}</lastmod>`,
+      `    <lastmod>${lastmod}</lastmod>`,
       page.changefreq ? `    <changefreq>${page.changefreq}</changefreq>` : '',
       page.priority ? `    <priority>${page.priority}</priority>` : '',
       '  </url>'
-    ].filter(Boolean).join('\n')),
+    ].filter(Boolean).join('\n');
+    }),
     '</urlset>'
   ].join('\n');
   res.type('application/xml').send(xml);
@@ -1767,11 +1825,12 @@ app.post('/api/team/tasks/:id/updates', teamAuth, async (req, res) => {
       updates_count: FieldValue.increment(1),
       updated_at: FieldValue.serverTimestamp()
     };
-    if (normalizedStatus && normalizedStatus !== task.status) {
-      taskUpdatePayload.status = normalizedStatus;
-    }
-    await taskRef.update(taskUpdatePayload);
-    const [updatedTaskSnap, updateSnap] = await Promise.all([taskRef.get(), updateRef.get()]);
+  if (normalizedStatus && normalizedStatus !== task.status) {
+    taskUpdatePayload.status = normalizedStatus;
+  }
+  await taskRef.update(taskUpdatePayload);
+  clearTeamTasksCache();
+  const [updatedTaskSnap, updateSnap] = await Promise.all([taskRef.get(), updateRef.get()]);
     const updatedTask = mapTeamTaskDoc(updatedTaskSnap);
     const updateRecord = mapTeamTaskUpdateDoc(updateSnap);
     const department = departmentMap.get(task.departmentId);
@@ -1902,6 +1961,7 @@ app.post('/api/team/tasks', teamAuth, async (req, res) => {
       restricted_roles: restrictedRoles,
       allowed_member_ids: allowedMemberIds
     });
+    clearTeamTasksCache();
     const createdTaskSnap = await taskRef.get();
     const createdTask = mapTeamTaskDoc(createdTaskSnap);
     const departmentColors = buildDepartmentColorMap(departments);
@@ -2064,6 +2124,7 @@ app.patch('/api/team/tasks/:id', teamAuth, async (req, res) => {
     }
     updates.updated_at = FieldValue.serverTimestamp();
     await taskRef.update(updates);
+    clearTeamTasksCache();
     const updatedTaskSnap = await taskRef.get();
     const updatedTask = mapTeamTaskDoc(updatedTaskSnap);
     const context = {
@@ -2104,6 +2165,7 @@ app.delete('/api/team/tasks/:id', teamAuth, async (req, res) => {
     }
     await deleteTaskUpdates(taskId);
     await taskRef.delete();
+    clearTeamTasksCache();
     res.json({ ok: true, deleted: true });
   } catch (err) {
     console.error('Failed to delete team task', err);
@@ -2345,11 +2407,12 @@ app.post('/api/team/tasks/:id/claim', teamAuth, async (req, res) => {
       return res.status(400).json({ ok: false, error: 'unknown_action' });
     }
 
-    await taskRef.update({
-      owner_ids: owners,
-      updated_at: FieldValue.serverTimestamp()
-    });
-    const updatedTaskSnap = await taskRef.get();
+  await taskRef.update({
+    owner_ids: owners,
+    updated_at: FieldValue.serverTimestamp()
+  });
+  clearTeamTasksCache();
+  const updatedTaskSnap = await taskRef.get();
     const updatedTask = mapTeamTaskDoc(updatedTaskSnap);
     const departmentMap = new Map(departments.map((dept) => [dept.id, dept]));
     const departmentColors = buildDepartmentColorMap(departments);
@@ -2470,6 +2533,7 @@ app.post('/api/team/events', teamAuth, async (req, res) => {
       created_at: nowIso,
       created_at_ts: FieldValue.serverTimestamp()
     });
+    clearTeamEventsCache();
     const eventSnap = await eventRef.get();
     const event = mapTeamEventDoc(eventSnap);
     res.status(201).json({ ok: true, event: sanitizeTeamEvent(event, memberMap) });
