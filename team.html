@@ -1907,16 +1907,26 @@
   const renderTasks = () => {
     closeStatusMenu();
     els.taskList.innerHTML = '';
-    if (!state.tasks.length) {
+    const shouldHideCompleted = state.filters.status === 'all';
+    const tasksToRender = shouldHideCompleted
+      ? state.tasks.filter((task) => (task.status || 'todo').toLowerCase() !== 'done')
+      : state.tasks.slice();
+    if (!tasksToRender.length) {
       const empty = document.createElement('p');
       empty.className = 'muted';
-      empty.textContent = 'No tasks match the current filters.';
+      if (state.filters.status === 'done') {
+        empty.textContent = 'No completed tasks yet.';
+      } else if (shouldHideCompleted && state.tasks.some((task) => (task.status || '').toLowerCase() === 'done')) {
+        empty.textContent = 'All tasks are completed! Switch the status filter to “Completed” to review them.';
+      } else {
+        empty.textContent = 'No tasks match the current filters.';
+      }
       els.taskList.appendChild(empty);
       return;
     }
     const memberRole = getMemberRole();
     const isElevated = memberRole === 'lead' || memberRole === 'mentor';
-    state.tasks.forEach((task) => {
+    tasksToRender.forEach((task) => {
       const card = document.createElement('article');
       card.className = 'task-card';
       if (task.isMine) card.classList.add('task-card--mine');
