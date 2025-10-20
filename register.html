@@ -78,10 +78,17 @@
   .field-optional{font-size:12px;color:var(--muted);opacity:.85;font-weight:500}
   input,select,textarea{padding:11px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);
     background:rgba(6,18,23,0.45);color:var(--white);font-size:15px;font-family:inherit}
+  input[type="checkbox"]{width:18px;height:18px;accent-color:var(--accent);cursor:pointer}
   input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(1) brightness(1.4);opacity:.85;cursor:pointer}
   input[type="date"]::-moz-focus-inner{border:0}
   input:focus,select:focus,textarea:focus{outline:2px solid rgba(123,224,74,0.55);outline-offset:1px}
   textarea{resize:vertical;min-height:96px}
+  .survey-fieldset{border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:16px;margin:10px 0 18px;display:grid;gap:14px;background:rgba(6,18,23,0.35)}
+  .survey-fieldset legend{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.02em;padding:0 6px}
+  .survey-options{display:grid;gap:10px}
+  .survey-option{flex-direction:row;align-items:center;gap:10px;margin:0}
+  .survey-option span{color:var(--white);font-size:14px}
+  .survey-other{margin:0}
   form .field-row{display:grid;gap:16px}
   @media(min-width:720px){form .field-row.two{grid-template-columns:1fr 1fr}}
   .btn{background:var(--accent);color:#061217;padding:12px 18px;border-radius:10px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 8px 20px rgba(123,224,74,0.12);transition:transform .2s ease,box-shadow .2s ease;border:none;cursor:pointer;font-size:15px}
@@ -202,9 +209,35 @@
               <input type="url" name="profile_link" placeholder="https://linkedin.com/in/...">
             </label>
           </div>
-          <label>How did you hear about us?
-            <textarea name="referral" placeholder="Friends, social media, campus announcement, etc." required></textarea>
-          </label>
+          <fieldset class="survey-fieldset">
+            <legend>How did you hear about us?</legend>
+            <div class="survey-options">
+              <label class="survey-option">
+                <input type="checkbox" name="referral" value="Instagram reels/posts">
+                <span>From Instagram reels/posts</span>
+              </label>
+              <label class="survey-option">
+                <input type="checkbox" name="referral" value="University notice board">
+                <span>From the university notice board</span>
+              </label>
+              <label class="survey-option">
+                <input type="checkbox" name="referral" value="Friends or family">
+                <span>From friends/family</span>
+              </label>
+              <label class="survey-option">
+                <input type="checkbox" name="referral" value="City posters">
+                <span>From posters around the city</span>
+              </label>
+              <label class="survey-option">
+                <input type="checkbox" name="referral" value="Campus clubs or announcements">
+                <span>From campus clubs/announcements</span>
+              </label>
+            </div>
+            <label class="survey-other">
+              <span class="label-line">Other source <span class="field-optional">(optional)</span></span>
+              <input type="text" name="referral_other" placeholder="Tell us where you heard about Bug Bash">
+            </label>
+          </fieldset>
           <label><span class="label-line">Additional notes for organizers <span class="field-optional">(optional)</span></span>
             <textarea name="notes" placeholder="Dietary needs, travel info, accessibility, etc." rows="2"></textarea>
           </label>
@@ -790,9 +823,16 @@ form.addEventListener('submit',async(e)=>{
     showSuccessModal('You already registered with this GitHub account. We\'ll see you at Bug Bash!');
     return;
   }
-  const entries=new FormData(form).entries();
+  const formData=new FormData(form);
+  const selectedSources=formData.getAll('referral').map(value=>value.trim()).filter(Boolean);
+  const otherSource=(formData.get('referral_other')||'').trim();
+  if(!selectedSources.length&&!otherSource){
+    showMsg('Please tell us how you heard about Bug Bash.','error');
+    return;
+  }
   const data={};
-  for(const [key,value] of entries){
+  for(const [key,value] of formData.entries()){
+    if(key==='referral'||key==='referral_other'){continue;}
     data[key]=typeof value==='string'?value.trim():value;
   }
   data.github_session=githubSessionToken;
@@ -818,7 +858,8 @@ form.addEventListener('submit',async(e)=>{
   if(!sizeValue){showMsg('Please choose a T-shirt size.','error');return;}
   data.phone=normalizedPhone;
   data.size=sizeValue;
-  data.heard_from=data.referral||'';
+  if(otherSource){selectedSources.push(otherSource);}
+  data.heard_from=selectedSources.join(', ');
   const originalNotes=data.notes||'';
   data.notes=originalNotes;
   if(SITE_KEY){

@@ -258,6 +258,17 @@ export const teamMembers = [
     identifiers: ['rachana'],
     slack_user_id: 'U09DN7N7NHW'
   },
+    {
+    id: 'mem-avanish',
+    displayName: 'Avanish',
+    loginId: 'avanish',
+    email: '',
+    role: 'member',
+    departmentId: 'dept-design',
+    accessCode: 'avanish@2025',
+    identifiers: ['avanish'],
+    slack_user_id: 'U09DATCNL4R'
+  },
   {
     id: 'mem-angela',
     displayName: 'Angela',
