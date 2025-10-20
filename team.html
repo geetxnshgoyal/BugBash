@@ -1246,7 +1246,7 @@
 
   const isElevatedMember = () => {
     const role = getMemberRole();
-    return role === 'lead' || role === 'mentor';
+    return ['lead', 'mentor', 'admin'].includes(role);
   };
 
   const STATUS_OPTIONS = [
@@ -1925,7 +1925,7 @@
       return;
     }
     const memberRole = getMemberRole();
-    const isElevated = memberRole === 'lead' || memberRole === 'mentor';
+    const isElevated = ['lead', 'mentor', 'admin'].includes(memberRole);
     tasksToRender.forEach((task) => {
       const card = document.createElement('article');
       card.className = 'task-card';
@@ -2212,7 +2212,7 @@
         body: JSON.stringify(payload)
       });
       const elevated = isElevatedMember();
-      const successMessage = elevated ? 'Task created.' : 'Task submitted to leads & mentors.';
+      const successMessage = elevated ? 'Task created.' : 'Task submitted to leads, mentors, or admins.';
       closeTaskModal();
       setStatus(successMessage, 'success');
       await refreshProfile();
@@ -2600,7 +2600,7 @@ const updateReminderRecipientUI = () => {
         missing_message: 'Write a message before broadcasting.',
         invalid_department: 'Select a valid department channel.',
         missing_channel: 'Slack channel not configured for that department.',
-        forbidden: 'Only mentors and leads can send announcements.',
+        forbidden: 'Only leads, mentors, or admins can send announcements.',
         announcement_failed: 'Could not send announcement.'
       };
       setModalMessage(els.announcementStatus, messages[errorCode] || 'Could not send announcement.', 'error');
@@ -2664,10 +2664,10 @@ const updateReminderRecipientUI = () => {
     els.myTasksToggle.checked = state.filters.showMine;
     const memberRole = getMemberRole();
     if (els.newTaskBtn) {
-      els.newTaskBtn.hidden = !['lead', 'mentor', 'member'].includes(memberRole);
+      els.newTaskBtn.hidden = !['lead', 'mentor', 'admin', 'member'].includes(memberRole);
     }
     if (els.announcementBtn) {
-      els.announcementBtn.hidden = !['lead', 'mentor'].includes(memberRole);
+      els.announcementBtn.hidden = !['lead', 'mentor', 'admin'].includes(memberRole);
     }
   };
   [els.taskModal, els.updateModal, els.editTaskModal, els.reminderModal, els.announcementModal].forEach(registerModalBackdrop);
@@ -2867,7 +2867,7 @@ const updateReminderRecipientUI = () => {
       const isOwner =
         Array.isArray(task.ownerIds) && state.member?.id ? task.ownerIds.includes(state.member.id) : false;
       if (!isOwner && !elevated) {
-        setStatus('Only task owners and leads or mentors can add updates.', 'error');
+        setStatus('Only task owners or leads, mentors, and admins can add updates.', 'error');
         return;
       }
       openUpdateModal(task);
@@ -2875,7 +2875,7 @@ const updateReminderRecipientUI = () => {
     }
     if (action === 'edit') {
       if (!elevated) {
-        setStatus('Only leads and mentors can update status.', 'error');
+        setStatus('Only leads, mentors, or admins can update status.', 'error');
         return;
       }
       if (!task) {
@@ -2889,7 +2889,7 @@ const updateReminderRecipientUI = () => {
     }
     if (action === 'edit-task') {
       if (!elevated) {
-        setStatus('Only leads and mentors can edit task details.', 'error');
+        setStatus('Only leads, mentors, or admins can edit task details.', 'error');
         return;
       }
       openEditTaskModal(task);
@@ -2897,7 +2897,7 @@ const updateReminderRecipientUI = () => {
     }
     if (action === 'remind') {
       if (!elevated) {
-        setStatus('Only leads and mentors can send reminders.', 'error');
+        setStatus('Only leads, mentors, or admins can send reminders.', 'error');
         return;
       }
       if (!task) {
@@ -2909,7 +2909,7 @@ const updateReminderRecipientUI = () => {
     }
     if (action === 'update-deadline') {
       if (!elevated) {
-        setStatus('Only leads and mentors can update deadlines.', 'error');
+        setStatus('Only leads, mentors, or admins can update deadlines.', 'error');
         return;
       }
       openEditTaskModal(task, { focusField: 'due' });
@@ -2917,7 +2917,7 @@ const updateReminderRecipientUI = () => {
     }
     if (action === 'delete-task') {
       if (!elevated) {
-        setStatus('Only leads and mentors can delete tasks.', 'error');
+        setStatus('Only leads, mentors, or admins can delete tasks.', 'error');
         return;
       }
       if (!confirm('Delete this task? This action cannot be undone.')) return;

@@ -52,6 +52,7 @@ const EMAIL_FROM = process.env.EMAIL_FROM?.trim() || 'Bug Bash <updates@bugbash.
 const TEAM_DASHBOARD_ENABLED = process.env.TEAM_DASHBOARD_ENABLED !== 'false';
 const TEAM_SESSION_TTL_MS = Number(process.env.TEAM_SESSION_TTL_MS || 1000 * 60 * 60 * 4);
 const TEAM_ALLOWED_STATUSES = new Set(['todo', 'in_progress', 'blocked', 'done']);
+const ELEVATED_ROLES = ['lead', 'mentor', 'admin'];
 
 const teamLoginOverrides = new Map();
 const rawTeamLoginCodes = process.env.TEAM_LOGIN_CODES?.trim();
@@ -582,7 +583,7 @@ const sanitizeTeamTask = (
   });
   const departmentColor = departmentColors.get(task.departmentId) || '#7be04a';
   const isMine = Boolean(currentMemberId && owners.includes(currentMemberId));
-  const isElevated = currentRoleNormalized === 'lead' || currentRoleNormalized === 'mentor';
+  const isElevated = ELEVATED_ROLES.includes(currentRoleNormalized);
   const hasOwners = owners.length > 0;
   const canClaim = Boolean(currentMemberId && !isMine && (!hasOwners || isElevated));
   const canUnclaim = Boolean(currentMemberId && (isMine || isElevated));
@@ -843,7 +844,7 @@ const hasRole = (member, roles = []) => {
   return roles.includes(normalized);
 };
 
-const isLeadOrMentor = (member) => hasRole(member, ['lead', 'mentor']);
+const isLeadOrMentor = (member) => hasRole(member, ELEVATED_ROLES);
 
 const mapTeamDepartmentDoc = (doc) => {
   const data = doc.data() || {};
@@ -1902,7 +1903,7 @@ app.post('/api/team/tasks/:id/updates', teamAuth, async (req, res) => {
 app.post('/api/team/tasks', teamAuth, async (req, res) => {
   const requester = req.teamMember;
   const requesterRole = requester.roleNormalized || normalizeRole(requester.role);
-  const isElevated = requesterRole === 'lead' || requesterRole === 'mentor';
+  const isElevated = ELEVATED_ROLES.includes(requesterRole);
   if (!isElevated && requesterRole !== 'member') {
     return res.status(403).json({ ok: false, error: 'forbidden' });
   }
@@ -2471,7 +2472,7 @@ app.get('/api/team/events', teamAuth, async (req, res) => {
 
 app.post('/api/team/events', teamAuth, async (req, res) => {
   const requester = req.teamMember;
-  if (requester.role !== 'lead') {
+  if (!ELEVATED_ROLES.includes(normalizeRole(requester.role))) {
     return res.status(403).json({ ok: false, error: 'forbidden' });
   }
   const {

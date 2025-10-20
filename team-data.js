@@ -291,12 +291,12 @@ export const teamMembers = [
     identifiers: ['vivaan'],
     slack_user_id: 'U09D0C201L5'
   },
-    {
+  {
     id: 'mem-geetansh',
     displayName: 'Geetansh',
     loginId: 'geetansh',
     email: '',
-    role: 'Lead',
+    role: 'Admin',
     departmentId: '',
     accessCode: 'geetansh',
     identifiers: ['geetansh'],
