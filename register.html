@@ -103,10 +103,8 @@
   .github-auth__hint{font-size:13px;color:var(--muted);margin:0}
   .github-auth__user{font-size:13px;color:var(--accent);margin:0}
   .github-auth__user[hidden]{display:none}
-  .form-divider{position:relative;text-align:center;font-size:12px;text-transform:uppercase;letter-spacing:0.18em;color:var(--muted);margin-top:6px;padding-top:6px}
-  .form-divider::before,.form-divider::after{content:'';position:absolute;top:50%;width:32%;height:1px;background:rgba(255,255,255,0.12)}
-  .form-divider::before{left:0}
-  .form-divider::after{right:0}
+  .form-divider{display:flex;align-items:center;justify-content:center;gap:12px;font-size:12px;text-transform:uppercase;letter-spacing:0.18em;color:var(--muted);margin:18px 0 16px;white-space:nowrap}
+  .form-divider::before,.form-divider::after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.12)}
   footer{text-align:center;color:var(--muted);font-size:13px;margin-top:48px;padding:16px;display:flex;flex-direction:column;gap:14px;align-items:center;background:rgba(255,255,255,0.02);border-radius:12px}
   footer p{margin:0}
   .social-links{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
