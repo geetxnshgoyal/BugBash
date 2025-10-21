@@ -645,6 +645,9 @@ const canMemberViewTask = (task, member) => {
     return true;
   }
   const memberRole = member?.roleNormalized || normalizeRole(member?.role);
+  if (memberRole === 'admin') {
+    return true;
+  }
   if (restrictedRoles.includes(memberRole)) {
     return true;
   }
