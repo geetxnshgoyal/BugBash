@@ -1124,6 +1124,8 @@ app.get('/sitemap.xml', (_req, res) => {
   const sitemapPages = [
     { loc: SITE_URL, changefreq: 'daily', priority: '1.0', file: 'index.html' },
     { loc: `${SITE_URL}/register`, changefreq: 'weekly', priority: '0.8', file: 'register.html' },
+    { loc: `${SITE_URL}/team`, changefreq: 'weekly', priority: '0.6', file: 'team.html' },
+    { loc: `${SITE_URL}/admin`, changefreq: 'weekly', priority: '0.4', file: 'admin.html' },
     { loc: `${SITE_URL}/favicon.ico`, changefreq: 'monthly', priority: '0.1', file: path.join('assets', 'favicon.ico') }
   ];
   const xml = [
