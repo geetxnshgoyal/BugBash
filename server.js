@@ -1173,6 +1173,27 @@ app.get('/env.js', (_req, res) => {
   res.type('application/javascript').send(`window.__APP_CONFIG__=${JSON.stringify(payload)};`);
 });
 
+const CANONICAL_REDIRECTS = new Map([
+  ['/register.html', '/register'],
+  ['/team.html', '/team'],
+  ['/admin.html', '/admin'],
+  ['/index.html', '/']
+]);
+
+app.get('/:page.html', (req, res, next) => {
+  const originalPath = `/${req.params.page}.html`;
+  const canonicalTarget = CANONICAL_REDIRECTS.get(originalPath);
+  if (!canonicalTarget) {
+    return next();
+  }
+  const search = req.originalUrl.includes('?')
+    ? `?${req.originalUrl.split('?')[1]}`
+    : '';
+  const destination =
+    canonicalTarget === '/' ? `${canonicalTarget}${search}` : `${canonicalTarget}${search}`;
+  res.redirect(301, destination);
+});
+
 app.use('/assets', express.static(path.join(__dirname, 'assets'), { extensions: ['png','jpg','jpeg','gif'] }));
 app.use(express.static(__dirname, { extensions: ['html'] }));
 
