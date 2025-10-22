@@ -7,6 +7,7 @@ import admin from 'firebase-admin';
 import crypto from 'crypto';
 import fetch from 'node-fetch';
 import nodemailer from 'nodemailer';
+import QRCode from 'qrcode';
 import { fileURLToPath } from 'url';
 
 dotenv.config();
@@ -48,6 +49,12 @@ const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
 const SMTP_USER = process.env.SMTP_USERNAME?.trim();
 const SMTP_PASS = process.env.SMTP_PASSWORD;
 const EMAIL_FROM = process.env.EMAIL_FROM?.trim() || 'Bug Bash <updates@bugbash.me>';
+const CHECKIN_SECRET =
+  process.env.CHECKIN_SECRET?.trim() ||
+  process.env.GITHUB_TOKEN_SECRET?.trim() ||
+  ADMIN_TOKEN ||
+  'bugbash-checkin';
+const CHECKIN_PREFIX = process.env.CHECKIN_PREFIX?.trim() || 'BB25';
 
 const TEAM_DASHBOARD_ENABLED = process.env.TEAM_DASHBOARD_ENABLED !== 'false';
 const TEAM_SESSION_TTL_MS = Number(process.env.TEAM_SESSION_TTL_MS || 1000 * 60 * 60 * 4);
@@ -294,6 +301,200 @@ if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
     console.error('Failed to configure mail transporter', mailErr);
   }
 }
+
+const sanitizeDisplayName = (value) =>
+  typeof value === 'string'
+    ? value
+        .replace(/[\r\n]/g, ' ')
+        .replace(/[<>]/g, '')
+        .trim()
+    : '';
+
+const stripHtmlTags = (value = '') =>
+  String(value || '')
+    .replace(/<\s*br\s*\/?>/gi, '\n')
+    .replace(/<\s*\/p\s*>/gi, '\n\n')
+    .replace(/<[^>]*>/g, '')
+    .replace(/\s+\n/g, '\n')
+    .trim();
+
+const plainTextToHtml = (value = '') => {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  const paragraphs = escaped
+    .split(/\n{2,}/g)
+    .map((block) => block.replace(/\n/g, '<br/>').trim())
+    .filter(Boolean)
+    .map((block) => `<p>${block}</p>`);
+  return paragraphs.join('\n') || `<p>${escaped.replace(/\n/g, '<br/>')}</p>`;
+};
+
+const renderTemplate = (template, context = {}) => {
+  if (typeof template !== 'string' || !template.includes('${')) {
+    return template || '';
+  }
+  return template.replace(/\$\{([a-zA-Z0-9_]+)\}/g, (match, key) => {
+    const replacement = Object.prototype.hasOwnProperty.call(context, key)
+      ? context[key]
+      : undefined;
+    if (replacement === undefined || replacement === null) return '';
+    return String(replacement);
+  });
+};
+
+const sleep = (ms) =>
+  new Promise((resolve) => {
+    if (ms > 0) {
+      setTimeout(resolve, ms);
+    } else {
+      resolve();
+    }
+  });
+
+const mapSmtpError = (err) => {
+  const code = err?.code;
+  const responseCode = err?.responseCode;
+  const message = typeof err?.message === 'string' ? err.message : '';
+  let status = 500;
+  let errorKey = 'test_send_failed';
+  let hint = '';
+
+  if (code === 'ECONNECTION') {
+    status = 502;
+    errorKey = 'smtp_connection_failed';
+    hint = 'SMTP server refused the connection. Verify host, port, and firewall rules.';
+  } else if (code === 'ECONNRESET') {
+    status = 502;
+    errorKey = 'smtp_connection_failed';
+    hint = 'SMTP server closed the connection before the email could be sent.';
+  } else if (code === 'ESOCKET' && /ECONNRESET/i.test(message)) {
+    status = 502;
+    errorKey = 'smtp_connection_failed';
+    hint = 'Connection was reset mid-handshake. Check SMTP port, TLS, or firewall rules.';
+  } else if (code === 'ETIMEDOUT') {
+    status = 504;
+    errorKey = 'smtp_connection_failed';
+    hint = 'Connection to SMTP server timed out. Check network and port.';
+  } else if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') {
+    status = 502;
+    errorKey = 'smtp_host_not_found';
+    hint = 'DNS lookup for SMTP host failed. Verify SMTP_HOST.';
+  } else if (code === 'EAUTH' || responseCode === 535 || responseCode === 534) {
+    status = 401;
+    errorKey = 'smtp_auth_failed';
+    hint = 'SMTP authentication failed. Verify username and password.';
+  } else if (responseCode === 550 || responseCode === 551) {
+    status = 502;
+    errorKey = 'smtp_rejected';
+    hint = 'SMTP server rejected the message or recipient.';
+  } else if (code === 'EPROTOCOL') {
+    status = 502;
+    errorKey = 'smtp_connection_failed';
+    hint = 'SMTP protocol error. Ensure TLS/SSL settings match the provider.';
+  } else if (code === 'EENVELOPE') {
+    status = 400;
+    errorKey = 'smtp_envelope_error';
+    hint = 'Invalid sender or recipient envelope.';
+  } else if (!code && /ECONNRESET/i.test(message)) {
+    status = 502;
+    errorKey = 'smtp_connection_failed';
+    hint = 'Connection was reset before authentication. Verify SMTP port and TLS.';
+  }
+
+  return { status, error: errorKey, hint };
+};
+
+const buildRecipientContext = (recipient = {}) => {
+  const rawName = sanitizeDisplayName(recipient.name || recipient.displayName || '');
+  const firstName = rawName ? rawName.split(/\s+/)[0] : '';
+  const fallbackName = firstName ? firstName : rawName || 'there';
+  const registrationId =
+    typeof recipient.registrationId === 'string' && recipient.registrationId.trim()
+      ? recipient.registrationId.trim()
+      : typeof recipient.id === 'string' && recipient.id.trim()
+      ? recipient.id.trim()
+      : '';
+  const checkinCode = registrationId ? createCheckinToken(registrationId) : '';
+  return {
+    email: recipient.email || '',
+    name: rawName || fallbackName,
+    firstName: firstName || 'there',
+    participantName: rawName || fallbackName,
+    participantFirstName: firstName || 'there',
+    registrationId,
+    participantId: registrationId,
+    checkinCode,
+    checkinToken: checkinCode
+  };
+};
+
+const createCheckinToken = (registrationId) => {
+  if (!registrationId) return '';
+  const signature = crypto.createHmac('sha256', CHECKIN_SECRET).update(registrationId).digest('hex');
+  const shortSignature = signature.slice(0, 24);
+  return `${CHECKIN_PREFIX}:${registrationId}:${shortSignature}`;
+};
+
+const verifyCheckinToken = (registrationId, signature) => {
+  if (!registrationId || !signature) return false;
+  const expected = crypto
+    .createHmac('sha256', CHECKIN_SECRET)
+    .update(registrationId)
+    .digest('hex')
+    .slice(0, signature.length);
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+};
+
+const parseCheckinCode = (code = '') => {
+  if (typeof code !== 'string') return null;
+  const trimmed = code.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith('{') || trimmed.startsWith('["') || trimmed.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === 'object') {
+        if (typeof parsed.id === 'string') {
+          return {
+            registrationId: parsed.id.trim(),
+            signature: typeof parsed.sig === 'string' ? parsed.sig.trim() : '',
+            signed: Boolean(parsed.sig),
+            raw: trimmed
+          };
+        }
+      }
+    } catch {
+      // ignore JSON parse issues
+    }
+  }
+
+  if (trimmed.startsWith(`${CHECKIN_PREFIX}:`)) {
+    const parts = trimmed.split(':');
+    if (parts.length >= 3) {
+      const registrationId = parts.slice(1, parts.length - 1).join(':').trim();
+      const signature = parts[parts.length - 1].trim();
+      if (registrationId && signature) {
+        return {
+          registrationId,
+          signature,
+          signed: true,
+          raw: trimmed
+        };
+      }
+    }
+  }
+
+  return {
+    registrationId: trimmed,
+    signature: '',
+    signed: false,
+    raw: trimmed
+  };
+};
 
 const sendConfirmationEmail = async ({ to, name, tshirtSize, profileLink, heardFrom }) => {
   if (!mailTransporter || !to) return;
@@ -816,6 +1017,9 @@ const teamMembersCollection = firestore.collection(TEAM_MEMBERS_COLLECTION);
 const teamTasksCollection = firestore.collection(TEAM_TASKS_COLLECTION);
 const teamTaskUpdatesCollection = firestore.collection(TEAM_TASK_UPDATES_COLLECTION);
 const teamEventsCollection = firestore.collection(TEAM_EVENTS_COLLECTION);
+const EMAIL_BROADCASTS_COLLECTION =
+  process.env.FIREBASE_EMAIL_BROADCASTS_COLLECTION || 'email_broadcasts';
+const emailBroadcastsCollection = firestore.collection(EMAIL_BROADCASTS_COLLECTION);
 
 const DEPARTMENT_COLOR_PALETTE = [
   '#7be04a',
@@ -1090,7 +1294,12 @@ const mapRegistration = (doc) => {
     phone: data.phone || '',
     dob: data.dob || '',
     tshirt_size: data.tshirt_size || data.size || '',
-    heard_from: data.heard_from || ''
+    heard_from: data.heard_from || '',
+    checked_in_at:
+      data.checked_in_at ||
+      (data.checked_in_ts?.toDate ? data.checked_in_ts.toDate().toISOString() : ''),
+    checked_in_by: data.checked_in_by || '',
+    checked_in_source: data.checked_in_source || ''
   };
 };
 
@@ -2651,6 +2860,321 @@ app.post('/api/admin/logout', (req, res) => {
   }
   res.json({ ok:true });
 });
+
+app.post('/api/admin/email/send', adminAuth, async (req, res) => {
+  if (!mailTransporter) {
+    return res.status(503).json({ ok: false, error: 'email_not_configured' });
+  }
+
+  const body = req.body || {};
+  const subject =
+    typeof body.subject === 'string'
+      ? body.subject.trim()
+      : '';
+  const rawContent = typeof body.content === 'string' ? body.content : '';
+  const explicitHtml = typeof body.html === 'string' ? body.html : '';
+  const explicitText = typeof body.text === 'string' ? body.text : '';
+  const normalizedMode =
+    typeof body.mode === 'string' ? body.mode.trim().toLowerCase() : '';
+  const testRecipient =
+    typeof body.testRecipient === 'string'
+      ? body.testRecipient.trim()
+      : typeof body.recipient === 'string'
+      ? body.recipient.trim()
+      : '';
+
+  if (!subject) {
+    return res.status(400).json({ ok: false, error: 'missing_subject' });
+  }
+
+  const htmlBody =
+    explicitHtml.trim() ||
+    plainTextToHtml(rawContent);
+  const textBody =
+    explicitText.trim() ||
+    rawContent.trim() ||
+    stripHtmlTags(explicitHtml);
+
+  if (!textBody && !htmlBody) {
+    return res.status(400).json({ ok: false, error: 'missing_body' });
+  }
+
+  const fallbackText = textBody || stripHtmlTags(htmlBody);
+  const previewPayload = {
+    subject,
+    text: fallbackText,
+    html: htmlBody
+  };
+
+  if (normalizedMode === 'preview') {
+    return res.json({ ok: true, mode: 'preview', preview: previewPayload });
+  }
+
+  if (normalizedMode === 'test') {
+    if (!testRecipient || !EMAIL_REGEX.test(testRecipient)) {
+      return res.status(400).json({ ok: false, error: 'invalid_test_recipient' });
+    }
+    try {
+      const recipientName = sanitizeDisplayName(body.testName || body.recipientName || '');
+      const context = buildRecipientContext({
+        name: recipientName,
+        email: testRecipient
+      });
+      const renderedSubject = renderTemplate(subject, context) || subject;
+      const renderedText = renderTemplate(fallbackText, context) || fallbackText;
+      const renderedHtml = htmlBody ? renderTemplate(htmlBody, context) : htmlBody;
+      await mailTransporter.sendMail({
+        from: EMAIL_FROM,
+        to: recipientName
+          ? { address: testRecipient, name: recipientName }
+          : { address: testRecipient },
+        subject: renderedSubject,
+        text: renderedText,
+        html: renderedHtml || undefined
+      });
+      return res.json({ ok: true, mode: 'test', sent: 1, preview: previewPayload });
+    } catch (err) {
+      console.error('Admin test email failed', err);
+      const mapped = mapSmtpError(err);
+      return res.status(mapped.status).json({
+        ok: false,
+        error: mapped.error,
+        details: err?.message || '',
+        hint: mapped.hint,
+        preview: previewPayload
+      });
+    }
+  }
+
+  try {
+    const snapshot = await registrationsCollection.get();
+    const dedupe = new Set();
+    const recipients = [];
+    snapshot.forEach((doc) => {
+      const data = doc.data() || {};
+      const emailRaw =
+        typeof data.leader_email === 'string' ? data.leader_email.trim() : '';
+      if (!EMAIL_REGEX.test(emailRaw)) return;
+      const normalizedEmail = emailRaw.toLowerCase();
+      if (dedupe.has(normalizedEmail)) return;
+      dedupe.add(normalizedEmail);
+      recipients.push({
+        email: emailRaw,
+        name: sanitizeDisplayName(data.leader_name || ''),
+        registrationId: doc.id
+      });
+    });
+
+    if (!recipients.length) {
+      return res.status(400).json({ ok: false, error: 'no_recipients' });
+    }
+
+    const batchSize = Number(process.env.EMAIL_BROADCAST_BATCH_SIZE || 40);
+    const pauseMs = Number(process.env.EMAIL_BROADCAST_PAUSE_MS || 800);
+    let successCount = 0;
+    const failures = [];
+
+    let logRef = null;
+    try {
+      logRef = emailBroadcastsCollection.doc();
+      await logRef.set({
+        subject,
+        mode: 'broadcast',
+        total_recipients: recipients.length,
+        created_at: FieldValue.serverTimestamp(),
+        status: 'sending',
+        preview_text: (fallbackText || '').slice(0, 500),
+        preview_html: (htmlBody || '').slice(0, 4000)
+      });
+    } catch (logErr) {
+      console.warn('Failed to record email broadcast log', logErr);
+    }
+
+    for (let index = 0; index < recipients.length; index += batchSize) {
+      const slice = recipients.slice(index, index + batchSize);
+      const results = await Promise.allSettled(
+        slice.map((recipient) => {
+          const context = buildRecipientContext(recipient);
+          const renderedSubject = renderTemplate(subject, context) || subject;
+          const renderedText = renderTemplate(fallbackText, context) || fallbackText;
+          const renderedHtml = htmlBody ? renderTemplate(htmlBody, context) : htmlBody;
+          return mailTransporter.sendMail({
+            from: EMAIL_FROM,
+            to: recipient.name
+              ? { address: recipient.email, name: recipient.name }
+              : { address: recipient.email },
+            subject: renderedSubject,
+            text: renderedText,
+            html: renderedHtml || undefined
+          });
+        })
+      );
+
+      results.forEach((result, idx) => {
+        const recipient = slice[idx];
+        if (result.status === 'fulfilled') {
+          successCount += 1;
+        } else {
+          const errorMessage =
+            result.reason?.message ||
+            (typeof result.reason === 'string' ? result.reason : 'unknown_error');
+          failures.push({
+            email: recipient.email,
+            registrationId: recipient.registrationId,
+            error: errorMessage
+          });
+          console.error('Broadcast email failed', recipient.email, result.reason);
+        }
+      });
+
+      if (index + batchSize < recipients.length && pauseMs > 0) {
+        await sleep(pauseMs);
+      }
+    }
+
+    if (logRef) {
+      try {
+        await logRef.update({
+          status: failures.length ? 'completed_with_errors' : 'completed',
+          sent_count: successCount,
+          failed_count: failures.length,
+          completed_at: FieldValue.serverTimestamp(),
+          errors: failures.slice(0, 25)
+        });
+      } catch (logUpdateErr) {
+        console.warn('Failed to update email broadcast log', logUpdateErr);
+      }
+    }
+
+    return res.json({
+      ok: true,
+      mode: 'broadcast',
+      recipients: recipients.length,
+      delivered: successCount,
+      failed: failures.length,
+      errors: failures.slice(0, 10)
+    });
+  } catch (err) {
+    console.error('Broadcast email failed', err);
+    const mapped = mapSmtpError(err);
+    return res.status(mapped.status).json({
+      ok: false,
+      error: mapped.error || 'broadcast_failed',
+      details: err?.message || '',
+      hint: mapped.hint
+    });
+  }
+});
+
+app.get('/api/admin/registrations/:id/qr', adminAuth, async (req, res) => {
+  const registrationId = req.params.id?.trim();
+  if (!registrationId) {
+    return res.status(400).json({ ok: false, error: 'missing_registration_id' });
+  }
+  try {
+    const snapshot = await registrationsCollection.doc(registrationId).get();
+    if (!snapshot.exists) {
+      return res.status(404).json({ ok: false, error: 'registration_not_found' });
+    }
+    const token = createCheckinToken(registrationId);
+    try {
+      const buffer = await QRCode.toBuffer(token, {
+        type: 'png',
+        width: Number(process.env.CHECKIN_QR_SIZE || 512),
+        margin: 1,
+        color: {
+          dark: process.env.CHECKIN_QR_DARK || '#0f1720',
+          light: process.env.CHECKIN_QR_LIGHT || '#ffffff'
+        }
+      });
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Cache-Control', 'no-store, max-age=0');
+      res.send(buffer);
+    } catch (qrErr) {
+      console.error('Failed to generate check-in QR', qrErr);
+      res.status(500).json({ ok: false, error: 'qr_generation_failed' });
+    }
+  } catch (err) {
+    console.error('Failed to prepare check-in QR', err);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
+app.post('/api/admin/checkins', adminAuth, async (req, res) => {
+  const body = req.body || {};
+  let registrationId = '';
+  let signed = false;
+  let signatureValid = false;
+
+  if (typeof body.code === 'string' && body.code.trim()) {
+    const parsed = parseCheckinCode(body.code);
+    if (!parsed || !parsed.registrationId) {
+      return res.status(400).json({ ok: false, error: 'invalid_code' });
+    }
+    registrationId = parsed.registrationId;
+    signed = parsed.signed;
+    if (parsed.signed) {
+      signatureValid = verifyCheckinToken(parsed.registrationId, parsed.signature);
+      if (!signatureValid) {
+        return res.status(400).json({ ok: false, error: 'invalid_signature' });
+      }
+    }
+  }
+
+  if (!registrationId) {
+    const manualId =
+      typeof body.registrationId === 'string'
+        ? body.registrationId.trim()
+        : typeof body.id === 'string'
+        ? body.id.trim()
+        : '';
+    registrationId = manualId;
+  }
+
+  if (!registrationId) {
+    return res.status(400).json({ ok: false, error: 'missing_registration_id' });
+  }
+
+  try {
+    const docRef = registrationsCollection.doc(registrationId);
+    const snapshot = await docRef.get();
+    if (!snapshot.exists) {
+      return res.status(404).json({ ok: false, error: 'registration_not_found' });
+    }
+    const data = snapshot.data() || {};
+    const alreadyChecked =
+      data.checked_in_at ||
+      (data.checked_in_ts?.toDate ? data.checked_in_ts.toDate().toISOString() : '');
+    if (alreadyChecked) {
+      return res.json({
+        ok: true,
+        status: 'already_checked_in',
+        registration: mapRegistration(snapshot)
+      });
+    }
+
+    const nowIso = new Date().toISOString();
+    const updatePayload = {
+      checked_in_at: nowIso,
+      checked_in_by: 'admin',
+      checked_in_source: signed ? 'qr' : 'manual',
+      checked_in_token: signed ? 'valid' : 'manual',
+      checked_in_ts: FieldValue.serverTimestamp()
+    };
+
+    await docRef.set(updatePayload, { merge: true });
+    const updated = await docRef.get();
+    return res.json({
+      ok: true,
+      status: 'checked_in',
+      registration: mapRegistration(updated)
+    });
+  } catch (err) {
+    console.error('Failed to update check-in status', err);
+    return res.status(500).json({ ok: false, error: 'checkin_failed' });
+  }
+});
+
 app.get('/api/admin/registrations', adminAuth, async (_req, res) => {
   try {
     const snapshot = await registrationsCollection.orderBy('created_at', 'desc').get();

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="640" height="760" viewBox="0 0 640 760" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .stem{fill:#0b1f2d;}
+      .body{fill:#79e16b;}
+      .txt-main{font-family:'Montserrat', 'Segoe UI', Arial, sans-serif;font-size:96px;font-weight:700;letter-spacing:2px;fill:#0b1f2d;}
+      .txt-tag{font-family:'Montserrat', 'Segoe UI', Arial, sans-serif;font-size:36px;font-weight:600;letter-spacing:12px;fill:#0b1f2d;}
+    </style>
+  </defs>
+  <g transform="translate(0 30)">
+    <path class="stem" d="M320 40c-78 0-140 62-140 140v38h-34c-28 0-50 22-50 50s22 50 50 50h34v46h-32c-28 0-50 22-50 50s22 50 50 50h32v18c0 78 62 140 140 140s140-62 140-140v-18h32c28 0 50-22 50-50s-22-50-50-50h-32v-46h34c28 0 50-22 50-50s-22-50-50-50h-34v-38c0-78-62-140-140-140z"/>
+    <path class="body" d="M320 94c-56 0-96 40-96 96v210c0 56 40 96 96 96s96-40 96-96V190c0-56-40-96-96-96zm0 60c14 0 26 12 26 26s-12 26-26 26-26-12-26-26 12-26 26-26z"/>
+    <path class="stem" d="M320 94c-56 0-96 40-96 96v62h16v-62c0-44 36-80 80-80s80 36 80 80v220c0 44-36 80-80 80-35 0-65-23-76-55h-31c13 55 64 95 124 95 71 0 128-57 128-128V190c0-71-57-128-128-128z"/>
+    <rect class="stem" x="140" y="170" width="40" height="140" rx="20"/>
+    <rect class="stem" x="460" y="170" width="40" height="140" rx="20"/>
+    <rect class="stem" x="140" y="350" width="40" height="140" rx="20"/>
+    <rect class="stem" x="460" y="350" width="40" height="140" rx="20"/>
+    <rect class="stem" x="300" y="260" width="40" height="200" rx="20"/>
+    <rect class="stem" x="248" y="250" width="36" height="48" rx="8"/>
+    <rect class="stem" x="356" y="250" width="36" height="48" rx="8"/>
+    <rect class="stem" x="304" y="360" width="32" height="40" rx="6"/>
+    <path class="body" d="M320 360c-22 0-32 16-32 32h32z"/>
+    <rect class="stem" x="212" y="118" width="80" height="32" rx="16" transform="rotate(-30 252 134)"/>
+    <rect class="stem" x="348" y="86" width="80" height="32" rx="16" transform="rotate(30 388 102)"/>
+    <rect class="stem" x="212" y="482" width="80" height="32" rx="16" transform="rotate(210 252 498)"/>
+    <rect class="stem" x="348" y="514" width="80" height="32" rx="16" transform="rotate(-210 388 530)"/>
+  </g>
+  <text class="txt-main" x="50%" y="640" text-anchor="middle">BUG BASH</text>
+  <text class="txt-tag" x="50%" y="700" text-anchor="middle">HACK · BREAK · BUILD</text>
+</svg>

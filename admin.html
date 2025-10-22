@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<link rel="icon" type="image/svg+xml" href="/assets/bugbash-logo.svg"/>
 <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png"/>
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png"/>
 <link rel="icon" type="image/png" sizes="48x48" href="/assets/favicon-48.png"/>
@@ -53,6 +54,42 @@
   .status{font-size:13px;color:var(--muted);margin-top:12px;min-height:18px}
   .status.error{color:var(--danger)}
   #dashboard{display:none;flex-direction:column;gap:18px}
+  .broadcast-card{margin:18px 0 6px;padding:20px;border-radius:14px;border:1px solid rgba(255,255,255,0.14);background:linear-gradient(180deg,rgba(255,255,255,0.06),rgba(11,16,32,0.35));box-shadow:0 18px 40px rgba(9,14,25,0.45);display:flex;flex-direction:column;gap:16px}
+  .broadcast-card h2{margin:0;font-size:20px;display:flex;align-items:center;gap:10px}
+  .broadcast-card h2::before{content:'✉️'}
+  .broadcast-card p.helper{margin:0;color:var(--muted);font-size:13px}
+  .broadcast-card label{margin:0;font-size:13px;color:var(--muted)}
+  .broadcast-card input[type=text],
+  .broadcast-card input[type=email]{padding:11px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:rgba(9,15,28,0.55);color:var(--white);font-size:15px}
+  .broadcast-card textarea{min-height:150px;resize:vertical;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.14);background:rgba(9,15,28,0.55);color:var(--white);font-size:15px;font-family:inherit;line-height:1.45}
+  .broadcast-card input[type=text]:focus,
+  .broadcast-card input[type=email]:focus,
+  .broadcast-card textarea:focus{outline:2px solid rgba(123,224,74,0.5);outline-offset:1px}
+  .broadcast-actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+  .broadcast-actions .test-send{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .broadcast-actions .test-send input{min-width:220px}
+  .broadcast-preview{border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;background:rgba(9,15,28,0.4);font-size:14px;color:#e2e8f0;line-height:1.5}
+  .broadcast-preview .preview-subject{font-weight:600;margin-bottom:10px;display:flex;gap:6px;align-items:center}
+  .broadcast-preview .preview-subject span.label{opacity:.6;font-weight:500}
+  .broadcast-preview .preview-body p{margin:0 0 12px}
+  .checkin-card{margin:8px 0 14px;padding:22px;border-radius:14px;border:1px solid rgba(255,255,255,0.12);background:linear-gradient(180deg,rgba(255,255,255,0.04),rgba(13,20,35,0.4));display:flex;flex-direction:column;gap:16px}
+  .checkin-card h2{margin:0;font-size:20px;display:flex;gap:10px;align-items:center}
+  .checkin-card h2::before{content:'🎟️'}
+  .checkin-actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+  .checkin-actions .manual{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .checkin-actions input[type=text]{min-width:220px;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:rgba(9,15,28,0.55);color:var(--white);font-size:15px}
+  .checkin-actions button{min-height:42px}
+  #qrReader{width:100%;max-width:380px;min-height:260px;border-radius:12px;border:1px dashed rgba(255,255,255,0.18);background:rgba(10,16,28,0.65);display:flex;align-items:center;justify-content:center;overflow:hidden}
+  #qrReader video{border-radius:12px;object-fit:cover;width:100%;height:100%}
+  .checkin-status{font-size:14px}
+  .checkin-meta{font-size:13px;color:var(--muted)}
+  .table-wrap table tr.checked-in{background:rgba(34,197,94,0.08)}
+  .table-wrap table tr.checked-in:hover{background:rgba(34,197,94,0.12)}
+  .table-wrap table td .badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:4px 7px;border-radius:999px;background:rgba(255,255,255,0.1);margin-bottom:4px}
+  .table-wrap table td .badge.success{background:rgba(34,197,94,0.18);color:#bbf7d0}
+  .table-wrap table td .badge.warn{background:rgba(250,204,21,0.2);color:#fef3c7}
+  .table-wrap table td button.qr-btn{padding:7px 10px;font-size:12px;border-radius:8px;background:rgba(123,224,74,0.12);color:#a3ff7a;border:1px solid rgba(123,224,74,0.35);cursor:pointer}
+  .table-wrap table td button.qr-btn:hover{background:rgba(123,224,74,0.2)}
   .toolbar{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;align-items:center}
   .toolbar strong{font-size:18px}
   .toolbar-actions{display:flex;gap:12px;flex-wrap:wrap}
@@ -112,6 +149,46 @@
         <button id="logoutBtn" class="ghost" type="button">Log out</button>
       </div>
     </div>
+    <div class="broadcast-card" id="emailPanel">
+      <h2>Participant update email</h2>
+      <p class="helper">Write an announcement and send it to every registered participant or run a test send first.</p>
+      <label>Subject
+        <input id="emailSubject" type="text" placeholder="Bug Bash schedule update" autocomplete="off">
+      </label>
+      <label>Message
+        <textarea id="emailBody" placeholder="Hi team,\n\nHere's the latest on Bug Bash..."></textarea>
+      </label>
+      <div class="broadcast-actions">
+        <div class="test-send">
+          <input id="testEmail" type="email" placeholder="Send test to..." autocomplete="off" spellcheck="false">
+          <button id="sendTestEmailBtn" class="ghost" type="button">Send test email</button>
+        </div>
+        <button id="sendBroadcastBtn" type="button">Send to all participants</button>
+      </div>
+      <div id="emailStatus" class="status"></div>
+      <div class="broadcast-preview">
+        <div class="preview-subject"><span class="label">Subject:</span> <span id="emailPreviewSubject"></span></div>
+        <div id="emailPreviewBody" class="preview-body"></div>
+      </div>
+    </div>
+    <div class="checkin-card" id="checkinPanel">
+      <h2>Onsite check-in</h2>
+      <p class="helper">Scan a participant&#39;s QR code or enter their registration ID to mark attendance.</p>
+      <div class="checkin-actions">
+        <button id="startScanBtn" type="button">Start scanner</button>
+        <button id="stopScanBtn" class="ghost" type="button">Stop scanner</button>
+        <div class="manual">
+          <input id="manualCheckinInput" type="text" placeholder="Paste code or ID" autocomplete="off" spellcheck="false">
+          <button id="manualCheckinBtn" type="button">Check in</button>
+        </div>
+        <button id="refreshCheckinsBtn" class="ghost" type="button">Refresh list</button>
+      </div>
+      <div id="qrReader" hidden>
+        <span style="font-size:13px;color:var(--muted);">Camera initializing…</span>
+      </div>
+      <div id="checkinStatus" class="status checkin-status"></div>
+      <div id="checkinMeta" class="checkin-meta"></div>
+    </div>
     <div class="table-wrap">
       <table id="regTable">
         <thead>
@@ -127,6 +204,7 @@
             <th>Notes</th>
             <th>Profile link</th>
             <th>IP</th>
+            <th>Check-in</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -135,6 +213,7 @@
     </div>
   </section>
 </div>
+<script src="/assets/html5-qrcode.min.js"></script>
 <script>
 /* background particles */
 (()=>{
@@ -263,8 +342,29 @@ const emptyState=document.getElementById('emptyState');
 const refreshBtn=document.getElementById('refreshBtn');
 const logoutBtn=document.getElementById('logoutBtn');
 const csvBtn=document.getElementById('csvBtn');
+const emailSubjectInput=document.getElementById('emailSubject');
+const emailBodyInput=document.getElementById('emailBody');
+const testEmailInput=document.getElementById('testEmail');
+const sendTestEmailBtn=document.getElementById('sendTestEmailBtn');
+const sendBroadcastBtn=document.getElementById('sendBroadcastBtn');
+const emailStatus=document.getElementById('emailStatus');
+const emailPreviewSubject=document.getElementById('emailPreviewSubject');
+const emailPreviewBody=document.getElementById('emailPreviewBody');
+const startScanBtn=document.getElementById('startScanBtn');
+const stopScanBtn=document.getElementById('stopScanBtn');
+const manualCheckinInput=document.getElementById('manualCheckinInput');
+const manualCheckinBtn=document.getElementById('manualCheckinBtn');
+const refreshCheckinsBtn=document.getElementById('refreshCheckinsBtn');
+const qrReaderEl=document.getElementById('qrReader');
+const checkinStatus=document.getElementById('checkinStatus');
+const checkinMeta=document.getElementById('checkinMeta');
 
 let activeToken='';
+let html5Qr=null;
+let scannerActive=false;
+let lastScanValue='';
+let lastScanAt=0;
+let registrationsCache=[];
 
 const setStatus=(el,text,isError=false)=>{
   el.textContent=text||'';
@@ -280,14 +380,30 @@ const formatDate=(value)=>{
 
 const escapeHtml=(txt)=>String(txt ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;');
 const formatMultiLine=(txt)=>escapeHtml(txt).replace(/\n/g,'<br>');
+const defaultPreviewHtml='<em style="color:var(--muted);">Message preview will appear here.</em>';
+const buildPreviewHtml=txt=>{
+  const value=String(txt||'').trim();
+  if(!value) return defaultPreviewHtml;
+  return value
+    .split(/\n{2,}/g)
+    .map(block=>`<p>${escapeHtml(block).replace(/\n/g,'<br>')}</p>`)
+    .join('');
+};
+const updateEmailPreview=()=>{
+  const subject=emailSubjectInput?.value.trim()||'(no subject yet)';
+  if(emailPreviewSubject) emailPreviewSubject.textContent=subject;
+  if(emailPreviewBody) emailPreviewBody.innerHTML=buildPreviewHtml(emailBodyInput?.value||'');
+};
 
 const renderRows=(rows=[])=>{
   tableBody.innerHTML='';
   if(!rows.length){
     emptyState.hidden=false;
+    registrationsCache=[];
     return;
   }
   emptyState.hidden=true;
+  registrationsCache=rows;
   tableBody.innerHTML=rows.map(row=>{
     const linkCell=row.profile_link?`<a href="${escapeHtml(row.profile_link)}" target="_blank" rel="noopener">Open</a>`:'';
     const created=formatDate(row.created_at||'');
@@ -295,7 +411,13 @@ const renderRows=(rows=[])=>{
     const dob=row.dob||'';
     const size=row.tshirt_size||'';
     const heard=row.heard_from||row.problem||'';
-    return `<tr>
+    const checkedClass=row.checked_in_at?'checked-in':'';
+    const checkinTime=row.checked_in_at?formatDate(row.checked_in_at):'';
+    const checkinBadge=row.checked_in_at
+      ? `<span class="badge success">Checked in</span><div>${escapeHtml(checkinTime)}</div>`
+      : `<span class="badge warn">Pending</span>`;
+    const checkinControls=`<button class="qr-btn" data-action="qr" data-id="${row.id}">QR</button>`;
+    return `<tr data-id="${row.id}" class="${checkedClass}">
       <td>${row.id}</td>
       <td>${escapeHtml(created)}</td>
       <td>${escapeHtml(row.leader_name||'')}</td>
@@ -307,9 +429,14 @@ const renderRows=(rows=[])=>{
       <td>${formatMultiLine(row.notes||'')}</td>
       <td>${linkCell}</td>
       <td>${escapeHtml(row.ip||'')}</td>
+      <td>${checkinControls}<br>${checkinBadge}</td>
     </tr>`;
   }).join('');
 };
+
+updateEmailPreview();
+emailSubjectInput?.addEventListener('input',updateEmailPreview);
+emailBodyInput?.addEventListener('input',updateEmailPreview);
 
 const authHeaders=()=>activeToken?{Authorization:`Bearer ${activeToken}`}:{ };
 
@@ -323,6 +450,319 @@ const resetToLogin=(message='',isError=false)=>{
   submissionCount.textContent='0 registrations';
   setStatus(statusEl,'');
   setStatus(loginStatus,message,isError);
+  if(emailSubjectInput) emailSubjectInput.value='';
+  if(emailBodyInput) emailBodyInput.value='';
+  if(testEmailInput) testEmailInput.value='';
+  if(emailStatus) setStatus(emailStatus,'');
+  if(sendBroadcastBtn) sendBroadcastBtn.disabled=false;
+  if(sendTestEmailBtn) sendTestEmailBtn.disabled=false;
+  stopScanner(true);
+  if(checkinStatus) setStatus(checkinStatus,'');
+  if(checkinMeta) checkinMeta.textContent='';
+  updateEmailPreview();
+};
+
+const emailErrorMessages={
+  missing_subject:'Add a subject before sending.',
+  missing_body:'Write a message before sending.',
+  email_not_configured:'Mail server is not configured on the server.',
+  invalid_test_recipient:'Enter a valid test recipient email address.',
+  no_recipients:'No participant emails found to send to.',
+  test_send_failed:'Test email failed. Check the server logs.',
+  broadcast_failed:'Broadcast failed. Check the server logs.',
+  smtp_connection_failed:'Could not reach the SMTP server.',
+  smtp_auth_failed:'SMTP authentication failed.',
+  smtp_host_not_found:'SMTP host could not be resolved.',
+  smtp_rejected:'SMTP server rejected the message.',
+  smtp_envelope_error:'Invalid email sender or recipient.',
+  smtp_unknown_error:'SMTP error occurred.'
+};
+
+const checkinErrorMessages={
+  invalid_code:'QR code not recognized.',
+  invalid_signature:'QR code signature is invalid.',
+  missing_registration_id:'Enter or scan a registration ID first.',
+  registration_not_found:'No registration found for that ID.',
+  checkin_failed:'Check-in failed. Try again.'
+};
+
+const sendAdminEmail=async(mode)=>{
+  if(!activeToken){
+    resetToLogin('Session expired. Please sign in again.',true);
+    return;
+  }
+  if(!emailSubjectInput||!emailBodyInput||!emailStatus){
+    console.warn('Email panel not available');
+    return;
+  }
+  const subject=emailSubjectInput.value.trim();
+  const content=emailBodyInput.value;
+  if(!subject){
+    setStatus(emailStatus,emailErrorMessages.missing_subject,true);
+    return;
+  }
+  if(!content.trim()){
+    setStatus(emailStatus,emailErrorMessages.missing_body,true);
+    return;
+  }
+
+  const payload={subject,content,mode};
+  if(mode==='test'){
+    const testAddress=testEmailInput?.value.trim()||'';
+    if(!testAddress){
+      setStatus(emailStatus,'Enter a test email address first.',true);
+      return;
+    }
+    payload.testRecipient=testAddress;
+  }
+
+  const busyMessage=mode==='test'?'Sending test email...':'Sending email to all participants...';
+  setStatus(emailStatus,busyMessage);
+  sendBroadcastBtn.disabled=true;
+  sendTestEmailBtn.disabled=true;
+
+  const headers={...authHeaders(),'Content-Type':'application/json'};
+
+  try{
+    const res=await fetch('/api/admin/email/send',{
+      method:'POST',
+      headers,
+      body:JSON.stringify(payload)
+    });
+    const data=await res.json().catch(()=>null);
+    if(!res.ok||!data?.ok){
+      const errKey=data?.error;
+      let message=emailErrorMessages[errKey]||'Email send failed.';
+      if(data?.details){
+        message=`${message} (${data.details})`;
+      }
+      if(data?.hint){
+        message=`${message} ${data.hint}`;
+      }
+      setStatus(emailStatus,message,true);
+      if(data?.preview){
+        if(data.preview.subject&&emailPreviewSubject){
+          emailPreviewSubject.textContent=data.preview.subject;
+        }
+        if(data.preview.text&&emailPreviewBody){
+          emailPreviewBody.innerHTML=buildPreviewHtml(data.preview.text);
+        }else if(data.preview.html&&emailPreviewBody){
+          emailPreviewBody.innerHTML=data.preview.html;
+        }
+      }
+      return;
+    }
+    if(mode==='test'){
+      setStatus(emailStatus,`Test email sent to ${payload.testRecipient}.`);
+      if(data.preview){
+        if(data.preview.subject&&emailPreviewSubject){
+          emailPreviewSubject.textContent=data.preview.subject;
+        }
+        if(data.preview.text&&emailPreviewBody){
+          emailPreviewBody.innerHTML=buildPreviewHtml(data.preview.text);
+        }else if(data.preview.html&&emailPreviewBody){
+          emailPreviewBody.innerHTML=data.preview.html;
+        }
+      }
+    }else{
+      const delivered=data.delivered ?? data.recipients ?? 0;
+      const failed=data.failed ?? 0;
+      const pluralDelivered=delivered===1?'participant':'participants';
+      const pluralFailed=failed===1?'failure':'failures';
+      const successMessage=failed
+        ? `Sent to ${delivered} ${pluralDelivered} with ${failed} ${pluralFailed}.`
+        : `Sent to ${delivered} ${pluralDelivered}.`;
+      setStatus(emailStatus,successMessage,Boolean(failed));
+    }
+  }catch(err){
+    console.error(err);
+    setStatus(emailStatus,'Email send failed.',true);
+  }finally{
+    sendBroadcastBtn.disabled=false;
+    sendTestEmailBtn.disabled=false;
+  }
+};
+
+const updateScannerButtons=()=>{
+  if(startScanBtn) startScanBtn.disabled=scannerActive;
+  if(stopScanBtn) stopScanBtn.disabled=!scannerActive;
+};
+
+const stopScanner=async(silent=false)=>{
+  if(html5Qr){
+    try{
+      if(scannerActive){
+        await html5Qr.stop();
+      }
+      await html5Qr.clear();
+    }catch(err){
+      console.warn('Failed to stop scanner',err);
+    }
+    html5Qr=null;
+  }
+  scannerActive=false;
+  if(qrReaderEl){
+    qrReaderEl.hidden=true;
+  }
+  updateScannerButtons();
+  if(!silent){
+    setStatus(checkinStatus,'Scanner stopped.');
+  }
+};
+
+const displayCheckinMeta=(registration={},status='')=>{
+  if(!checkinMeta) return;
+  if(!registration||!registration.id){
+    checkinMeta.textContent='';
+    return;
+  }
+  const name=registration.leader_name||registration.leader_email||registration.id;
+  const statusText=status==='checked_in'
+    ? `Checked in at ${formatDate(registration.checked_in_at)}`
+    : registration.checked_in_at
+    ? `Already checked in at ${formatDate(registration.checked_in_at)}`
+    : 'Not checked in yet.';
+  const lines=[
+    `<strong>${escapeHtml(name)}</strong>`,
+    `ID: ${escapeHtml(registration.id)}`,
+    statusText?escapeHtml(statusText):''
+  ].filter(Boolean);
+  checkinMeta.innerHTML=lines.join('<br>');
+};
+
+const performCheckin=async({code='',registrationId='',source='manual'}={})=>{
+  if(!activeToken){
+    resetToLogin('Session expired. Please sign in again.',true);
+    return;
+  }
+  const payload={};
+  if(code) payload.code=code.trim();
+  if(registrationId) payload.registrationId=registrationId.trim();
+  if(!payload.code&&!payload.registrationId){
+    setStatus(checkinStatus,checkinErrorMessages.missing_registration_id,true);
+    return;
+  }
+  displayCheckinMeta(null);
+  setStatus(checkinStatus,source==='qr'?'Scanning...':'Checking in...');
+  try{
+    const res=await fetch('/api/admin/checkins',{
+      method:'POST',
+      headers:{...authHeaders(),'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    if(res.status===401){
+      resetToLogin('Session expired. Please sign in again.',true);
+      return;
+    }
+    const data=await res.json().catch(()=>null);
+    if(!res.ok||!data?.ok){
+      const errKey=data?.error;
+      const message=checkinErrorMessages[errKey]||'Check-in failed.';
+      setStatus(checkinStatus,message,true);
+      if(data?.details){
+        checkinMeta.textContent=data.details;
+      }
+      return;
+    }
+    const registration=data.registration;
+    if(data.status==='already_checked_in'){
+      setStatus(checkinStatus,`Already checked in (${formatDate(registration.checked_in_at)}).`);
+    }else{
+      setStatus(checkinStatus,`Checked in ${registration.leader_name||registration.leader_email||registration.id}.`);
+    }
+    displayCheckinMeta(registration,data.status);
+    manualCheckinInput.value='';
+    lastScanValue='';
+    await fetchRegistrations();
+  }catch(err){
+    console.error(err);
+    setStatus(checkinStatus,'Check-in failed.',true);
+  }
+};
+
+const handleScanResult=async(decodedText)=>{
+  if(!decodedText) return;
+  const now=Date.now();
+  if(decodedText===lastScanValue && now-lastScanAt<2000) return;
+  lastScanValue=decodedText;
+  lastScanAt=now;
+  await performCheckin({code:decodedText,source:'qr'});
+};
+
+const startScanner=async()=>{
+  if(!activeToken){
+    resetToLogin('Session expired. Please sign in again.',true);
+    return;
+  }
+  if(scannerActive){
+    setStatus(checkinStatus,'Scanner already running.');
+    return;
+  }
+  if(!window.Html5Qrcode){
+    setStatus(checkinStatus,'Scanner library not loaded. Check your connection.',true);
+    return;
+  }
+  if(!qrReaderEl){
+    setStatus(checkinStatus,'Scanner element missing.',true);
+    return;
+  }
+  qrReaderEl.hidden=false;
+  if(!html5Qr){
+    html5Qr=new Html5Qrcode('qrReader');
+  }
+  try{
+    await html5Qr.start(
+      {facingMode:'environment'},
+      {
+        fps:10,
+        qrbox:{width:260,height:260},
+        formatsToSupport:window.Html5QrcodeSupportedFormats
+          ? [Html5QrcodeSupportedFormats.QR_CODE]
+          : undefined
+      },
+      handleScanResult,
+      (errMsg)=>console.debug('QR scan warning',errMsg)
+    );
+    scannerActive=true;
+    updateScannerButtons();
+    setStatus(checkinStatus,'Scanner ready. Hold a QR code in front of the camera.');
+  }catch(err){
+    console.error('Failed to start scanner',err);
+    await stopScanner(true);
+    setStatus(checkinStatus,'Unable to access camera. Grant permission or use manual entry.',true);
+  }
+};
+
+const downloadQr=async(registrationId)=>{
+  if(!registrationId) return;
+  if(!activeToken){
+    resetToLogin('Session expired. Please sign in again.',true);
+    return;
+  }
+  try{
+    setStatus(checkinStatus,`Generating QR for ${registrationId}...`);
+    const res=await fetch(`/api/admin/registrations/${encodeURIComponent(registrationId)}/qr`,{headers:authHeaders()});
+    if(res.status===401){
+      resetToLogin('Session expired. Please sign in again.',true);
+      return;
+    }
+    if(!res.ok){
+      throw new Error('Failed to download QR');
+    }
+    const blob=await res.blob();
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement('a');
+    link.href=url;
+    link.download=`bugbash-checkin-${registrationId}.png`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
+    setStatus(checkinStatus,`QR downloaded for ${registrationId}.`);
+  }catch(err){
+    console.error(err);
+    setStatus(checkinStatus,'Failed to generate QR code.',true);
+  }
 };
 
 const fetchRegistrations=async()=>{
@@ -395,6 +835,53 @@ loginForm.addEventListener('submit',async(e)=>{
     console.error(err);
     setStatus(loginStatus,'Login failed. Try again.',true);
   }
+});
+
+sendTestEmailBtn?.addEventListener('click',async()=>{
+  await sendAdminEmail('test');
+});
+
+sendBroadcastBtn?.addEventListener('click',async()=>{
+  if(!confirm('Send this email to all registered participants?')) return;
+  await sendAdminEmail('broadcast');
+});
+
+startScanBtn?.addEventListener('click',async()=>{
+  await startScanner();
+});
+
+stopScanBtn?.addEventListener('click',async()=>{
+  await stopScanner();
+});
+
+manualCheckinBtn?.addEventListener('click',async()=>{
+  const value=manualCheckinInput?.value.trim()||'';
+  if(!value){
+    setStatus(checkinStatus,checkinErrorMessages.missing_registration_id,true);
+    return;
+  }
+  await performCheckin({code:value,registrationId:value,source:'manual'});
+});
+
+manualCheckinInput?.addEventListener('keydown',async(e)=>{
+  if(e.key==='Enter'){
+    e.preventDefault();
+    manualCheckinBtn?.click();
+  }
+});
+
+refreshCheckinsBtn?.addEventListener('click',async()=>{
+  await fetchRegistrations();
+  setStatus(checkinStatus,'Check-in list refreshed.');
+});
+
+tableBody?.addEventListener('click',async(event)=>{
+  const trigger=event.target.closest('[data-action="qr"]');
+  if(!trigger) return;
+  event.preventDefault();
+  const id=trigger.dataset.id;
+  if(!id) return;
+  await downloadQr(id);
 });
 
 refreshBtn.addEventListener('click',async()=>{
