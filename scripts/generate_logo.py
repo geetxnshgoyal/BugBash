@@ -3,9 +3,10 @@ import struct
 import zlib
 from pathlib import Path
 
-DARK = (11, 31, 45, 255)
-GREEN = (121, 225, 107, 255)
-LIGHT = (255, 255, 255, 255)
+DARK = (7, 18, 28, 255)
+MID = (13, 34, 44, 255)
+GREEN = (123, 224, 74, 255)
+LIGHT = (228, 255, 235, 255)
 
 OUTPUTS = [
     ("assets/bugbash_logo.png", 512),
@@ -16,6 +17,8 @@ OUTPUTS = [
     ("assets/favicon-16.png", 16)
 ]
 
+ACCENT = (123, 224, 74, 220)
+
 BASE_SIZE = 512
 ROW_STRIDE = BASE_SIZE * 4 + 1
 pixels = bytearray(ROW_STRIDE * BASE_SIZE)
@@ -24,7 +27,11 @@ for y in range(BASE_SIZE):
     pixels[y * ROW_STRIDE] = 0
     for x in range(BASE_SIZE):
         idx = y * ROW_STRIDE + 1 + x * 4
-        pixels[idx:idx+4] = bytes(LIGHT)
+        ratio = y / (BASE_SIZE - 1)
+        r = int(DARK[0] * (1 - ratio) + MID[0] * ratio)
+        g = int(DARK[1] * (1 - ratio) + MID[1] * ratio)
+        b = int(DARK[2] * (1 - ratio) + MID[2] * ratio)
+        pixels[idx:idx+4] = bytes((r, g, b, 255))
 
 def clamp(v, lo, hi):
     return max(lo, min(hi, v))
@@ -51,7 +58,15 @@ def draw_round_rect(x0, y0, x1, y1, radius, color):
             if dx < radius and dy < radius:
                 if (radius - dx) ** 2 + (radius - dy) ** 2 > radius ** 2:
                     continue
-            set_pixel(x, y, color)
+            # add subtle glow overlay
+            if color == GREEN and radius > 0:
+                mix = 0.12
+                r = int(color[0] * (1 - mix) + LIGHT[0] * mix)
+                g = int(color[1] * (1 - mix) + LIGHT[1] * mix)
+                b = int(color[2] * (1 - mix) + LIGHT[2] * mix)
+                set_pixel(x, y, (r, g, b, color[3]))
+            else:
+                set_pixel(x, y, color)
 
 def draw_circle(cx, cy, r, color):
     r_sq = r * r

@@ -182,6 +182,7 @@
           <button id="manualCheckinBtn" type="button">Check in</button>
         </div>
         <button id="refreshCheckinsBtn" class="ghost" type="button">Refresh list</button>
+        <label><input id="stopAfterScan" type="checkbox" checked style="margin-right:6px">Stop scanner after successful scan</label>
       </div>
       <div id="qrReader" hidden>
         <span style="font-size:13px;color:var(--muted);">Camera initializing…</span>
@@ -687,6 +688,10 @@ const handleScanResult=async(decodedText)=>{
   lastScanValue=decodedText;
   lastScanAt=now;
   await performCheckin({code:decodedText,source:'qr'});
+  if(document.getElementById('stopAfterScan')?.checked){
+    setStatus(checkinStatus,'Scan captured. Scanner paused.');
+    await stopScanner(true);
+  }
 };
 
 const startScanner=async()=>{
