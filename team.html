@@ -868,12 +868,21 @@
         <button type="button" class="modal-close" data-close-modal="announcementModal" aria-label="Close announcement modal">×</button>
       </div>
       <div class="modal-highlight">
-        <span>Tagging <!channel> to notify everyone.</span>
+        <span>Tagging <!channel> to notify everyone. You can also call out a teammate below.</span>
       </div>
       <form id="announcementForm" class="modal-body">
         <label>
           Target channel
           <select id="announcementChannel"></select>
+        </label>
+        <label id="announcementMemberWrapper" hidden style="display:none">
+          Tag teammate (optional)
+          <select id="announcementMember"></select>
+          <span class="modal-hint">Adds a direct @mention in Slack.</span>
+        </label>
+        <label id="announcementCalloutWrapper" hidden style="display:none">
+          Note for tagged teammate
+          <input id="announcementCallout" type="text" maxlength="200" placeholder="Highlight why you're tagging them.">
         </label>
         <label>
           Message
@@ -1168,6 +1177,10 @@
     announcementModal: document.getElementById('announcementModal'),
     announcementForm: document.getElementById('announcementForm'),
     announcementChannel: document.getElementById('announcementChannel'),
+    announcementMemberWrapper: document.getElementById('announcementMemberWrapper'),
+    announcementMember: document.getElementById('announcementMember'),
+    announcementCalloutWrapper: document.getElementById('announcementCalloutWrapper'),
+    announcementCallout: document.getElementById('announcementCallout'),
     announcementMessage: document.getElementById('announcementMessage'),
     announcementStatus: document.getElementById('announcementStatus'),
     announcementCancel: document.getElementById('announcementCancel'),
@@ -1769,6 +1782,115 @@
     select.disabled = false;
   };
 
+  const updateAnnouncementCalloutVisibility = () => {
+    const hasSelection = Boolean(els.announcementMember && els.announcementMember.value);
+    const calloutWrapper = els.announcementCalloutWrapper;
+    if (calloutWrapper) {
+      calloutWrapper.hidden = !hasSelection;
+      calloutWrapper.style.display = hasSelection ? 'block' : 'none';
+      if (!hasSelection && els.announcementCallout) {
+        els.announcementCallout.value = '';
+      }
+    }
+  };
+
+  const populateAnnouncementMembers = (selectedMemberId = '') => {
+    const wrapper = els.announcementMemberWrapper;
+    const select = els.announcementMember;
+    if (!wrapper || !select) {
+      updateAnnouncementCalloutVisibility();
+      return;
+    }
+    const currentMemberId = state.member?.id || '';
+    const roster = getRosterMembers().filter(
+      (member) => member && member.id && member.id !== currentMemberId
+    );
+    select.innerHTML = '';
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = "Don't tag anyone";
+    select.appendChild(placeholder);
+
+    if (!roster.length) {
+      select.disabled = true;
+      wrapper.hidden = true;
+      wrapper.style.display = 'none';
+      updateAnnouncementCalloutVisibility();
+      return;
+    }
+
+    select.disabled = false;
+    wrapper.hidden = false;
+    wrapper.style.display = 'block';
+
+    const activeDeptId = state.department?.id || state.member?.departmentId || '';
+    const seen = new Set();
+
+    const addGroup = (label, items) => {
+      const filtered = items
+        .filter((member) => member && member.id && !seen.has(member.id))
+        .sort((a, b) => {
+          const aLabel = a.displayName || a.loginId || a.id || '';
+          const bLabel = b.displayName || b.loginId || b.id || '';
+          return aLabel.localeCompare(bLabel);
+        });
+      if (!filtered.length) return;
+      const optgroup = document.createElement('optgroup');
+      optgroup.label = label;
+      filtered.forEach((member) => {
+        seen.add(member.id);
+        const option = document.createElement('option');
+        option.value = member.id;
+        const base = member.displayName || member.loginId || member.id;
+        const deptLabel = member.departmentId ? ` • ${getDepartmentName(member.departmentId)}` : '';
+        option.textContent = `${base}${deptLabel}`;
+        optgroup.appendChild(option);
+      });
+      select.appendChild(optgroup);
+    };
+
+    if (activeDeptId) {
+      const sameDept = roster.filter((member) => member.departmentId === activeDeptId);
+      addGroup(`${getDepartmentName(activeDeptId)} team`, sameDept);
+    }
+
+    const otherTeams = roster.filter(
+      (member) => member.departmentId && member.departmentId !== activeDeptId
+    );
+    addGroup('Other teams', otherTeams);
+
+    const unassigned = roster.filter((member) => !member.departmentId);
+    addGroup('Unassigned', unassigned);
+
+    const optionCount = Array.from(select.options).filter(
+      (option) => option.value && !option.disabled
+    ).length;
+    if (!optionCount) {
+      select.disabled = true;
+      wrapper.hidden = true;
+      wrapper.style.display = 'none';
+    } else {
+      select.disabled = false;
+      wrapper.hidden = false;
+      wrapper.style.display = 'block';
+      if (selectedMemberId) {
+        const matched = Array.from(select.options).find(
+          (option) => option.value === selectedMemberId
+        );
+        if (matched) {
+          select.value = selectedMemberId;
+        } else {
+          select.value = '';
+        }
+      } else {
+        select.value = '';
+      }
+    }
+
+    updateAnnouncementCalloutVisibility();
+  };
+
   const populateUpdateStatusOptions = () => {
     const select = els.updateModalStatus;
     if (!select || select.dataset.initialized === 'true') return;
@@ -2368,6 +2490,13 @@ function closeUpdateModalSafe() {
     if (els.announcementMessage) {
       els.announcementMessage.value = '';
     }
+    if (els.announcementMember) {
+      els.announcementMember.value = '';
+    }
+    if (els.announcementCallout) {
+      els.announcementCallout.value = '';
+    }
+    updateAnnouncementCalloutVisibility();
     closeModal(els.announcementModal);
   };
 
@@ -2553,9 +2682,17 @@ const updateReminderRecipientUI = () => {
   const openAnnouncementModal = () => {
     if (!els.announcementModal) return;
     populateAnnouncementChannels();
+    populateAnnouncementMembers();
     setModalMessage(els.announcementStatus, '');
     if (els.announcementMessage) {
       els.announcementMessage.value = '';
+    }
+    if (els.announcementMember) {
+      els.announcementMember.value = '';
+    }
+    updateAnnouncementCalloutVisibility();
+    if (els.announcementCallout) {
+      els.announcementCallout.value = '';
     }
     if (els.announcementSubmit) {
       els.announcementSubmit.disabled = false;
@@ -2576,8 +2713,25 @@ const updateReminderRecipientUI = () => {
       els.announcementMessage?.focus();
       return;
     }
+    const mentionMemberId = els.announcementMember?.value || '';
+    const calloutNote = (els.announcementCallout?.value || '').trim();
+    if (calloutNote && !mentionMemberId) {
+      setModalMessage(
+        els.announcementStatus,
+        'Select a teammate to tag before adding a note.',
+        'error'
+      );
+      els.announcementMember?.focus();
+      return;
+    }
     const channelValue = els.announcementChannel?.value || 'global';
     const payload = { message };
+    if (mentionMemberId) {
+      payload.calloutMemberId = mentionMemberId;
+      if (calloutNote) {
+        payload.calloutMessage = calloutNote;
+      }
+    }
     if (channelValue.startsWith('department:')) {
       payload.scope = 'department';
       payload.departmentId = channelValue.slice('department:'.length);
@@ -2603,6 +2757,7 @@ const updateReminderRecipientUI = () => {
         missing_message: 'Write a message before broadcasting.',
         invalid_department: 'Select a valid department channel.',
         missing_channel: 'Slack channel not configured for that department.',
+        invalid_member: 'Tagged teammate could not be found.',
         forbidden: 'Only leads, mentors, or admins can send announcements.',
         announcement_failed: 'Could not send announcement.'
       };
@@ -2664,6 +2819,7 @@ const updateReminderRecipientUI = () => {
     populateReminderMembers(null, '', false);
     updateReminderRecipientUI();
     populateAnnouncementChannels();
+    populateAnnouncementMembers();
     els.myTasksToggle.checked = state.filters.showMine;
     const memberRole = getMemberRole();
     if (els.newTaskBtn) {
@@ -3061,6 +3217,11 @@ const updateReminderRecipientUI = () => {
   }
   if (els.announcementForm) {
     els.announcementForm.addEventListener('submit', submitAnnouncement);
+  }
+  if (els.announcementMember) {
+    els.announcementMember.addEventListener('change', () => {
+      updateAnnouncementCalloutVisibility();
+    });
   }
   if (els.announcementCancel) {
     els.announcementCancel.addEventListener('click', closeAnnouncementModal);

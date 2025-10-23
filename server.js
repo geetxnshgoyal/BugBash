@@ -2543,31 +2543,93 @@ app.post('/api/team/announcements', teamAuth, async (req, res) => {
       return res.status(400).json({ ok: false, error: 'missing_channel' });
     }
 
+    const calloutMemberId =
+      typeof req.body?.calloutMemberId === 'string' ? req.body.calloutMemberId.trim() : '';
+    const rawCalloutMessage =
+      typeof req.body?.calloutMessage === 'string' ? req.body.calloutMessage.trim() : '';
+    let calloutMember = null;
+    let calloutMention = '';
+    let calloutDisplay = '';
+    let calloutPlainLabel = '';
+    let calloutNote = '';
+
+    if (calloutMemberId) {
+      const { map: memberMap } = await fetchTeamMembersMap();
+      const member = memberMap.get(calloutMemberId);
+      if (!member) {
+        return res.status(400).json({ ok: false, error: 'invalid_member' });
+      }
+      calloutMember = sanitizeTeamMember(member);
+      if (!calloutMember) {
+        return res.status(400).json({ ok: false, error: 'invalid_member' });
+      }
+      calloutMention = formatSlackMention(calloutMember);
+      calloutPlainLabel =
+        calloutMember.displayName ||
+        calloutMember.loginId ||
+        calloutMember.email ||
+        calloutMember.id ||
+        'teammate';
+      calloutDisplay = slackEscape(calloutPlainLabel);
+      if (rawCalloutMessage) {
+        const trimmedNote = rawCalloutMessage.slice(0, 200);
+        calloutNote = slackEscape(trimmedNote);
+      }
+    }
+
     const { iso: sentAtIso, display: sentAtDisplayRaw } = buildSlackTimestamp();
     const sentAtDisplay = `${sentAtDisplayRaw} (IST)`;
     const posterMention = formatSlackMention(req.teamMember);
     const safeMessage = slackEscape(message);
 
-    notifySlack({
-      text: `<!channel> Announcement • ${sentAtIso}`,
-      channel,
-      blocks: [
-        {
-          type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: `<!channel>\n${safeMessage}`
-          }
-        },
-        {
-          type: 'context',
-          elements: [
-            { type: 'mrkdwn', text: `*Audience:* ${slackEscape(audienceLabel)}` },
-            { type: 'mrkdwn', text: `*Sent:* ${sentAtDisplay}` },
-            { type: 'mrkdwn', text: `Posted by ${posterMention}` }
-          ]
+    const blocks = [
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `<!channel>\n${safeMessage}`
         }
-      ]
+      }
+    ];
+
+    if (calloutMember) {
+      const calloutLineParts = [`*Callout:* ${calloutMention}`];
+      if (calloutNote) {
+        calloutLineParts.push(`— ${calloutNote}`);
+      }
+      blocks.push({
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: calloutLineParts.join(' ')
+        }
+      });
+    }
+
+    const contextElements = [
+      { type: 'mrkdwn', text: `*Audience:* ${slackEscape(audienceLabel)}` },
+      { type: 'mrkdwn', text: `*Sent:* ${sentAtDisplay}` },
+      { type: 'mrkdwn', text: `Posted by ${posterMention}` }
+    ];
+
+    if (calloutMember) {
+      contextElements.splice(1, 0, { type: 'mrkdwn', text: `*Tagged:* ${calloutDisplay}` });
+    }
+
+    blocks.push({
+      type: 'context',
+      elements: contextElements
+    });
+
+    const fallbackPieces = [`<!channel> Announcement • ${sentAtIso}`];
+    if (calloutPlainLabel) {
+      fallbackPieces.push(`Callout: ${calloutPlainLabel}`);
+    }
+
+    notifySlack({
+      text: fallbackPieces.join(' • '),
+      channel,
+      blocks
     });
 
     res.status(201).json({ ok: true });
