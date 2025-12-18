@@ -8,6 +8,8 @@ import crypto from 'crypto';
 import fetch from 'node-fetch';
 import nodemailer from 'nodemailer';
 import QRCode from 'qrcode';
+import helmet from 'helmet';
+import { RateLimiterMemory } from 'rate-limiter-flexible';
 import { fileURLToPath } from 'url';
 
 dotenv.config();
@@ -31,7 +33,7 @@ const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET?.trim() || '';
 const GITHUB_REDIRECT_URI = process.env.GITHUB_REDIRECT_URI?.trim();
 const GITHUB_STATE_TTL_MS = Number(process.env.GITHUB_STATE_TTL_MS || 1000 * 60 * 10);
 const GITHUB_PROFILE_TTL_MS = Number(process.env.GITHUB_PROFILE_TTL_MS || 1000 * 60 * 5);
-const SITE_URL = (process.env.SITE_URL?.trim() || 'https://bugbash.me').replace(/\/+$/, '');
+const SITE_URL = (process.env.SITE_URL?.trim() || 'https://bugbash.in').replace(/\/+$/, '');
 const GOOGLE_SITE_VERIFICATION_META = process.env.GOOGLE_SITE_VERIFICATION?.trim();
 const GOOGLE_SITE_VERIFICATION_HTML = process.env.GOOGLE_SITE_VERIFICATION_HTML?.trim();
 const rawGithubTokenSecret =
@@ -736,17 +738,10 @@ const sanitizeTeamMember = (member) => {
   return {
     id: member.id,
     displayName: member.displayName || '',
-    email: member.email || '',
     role: member.role || '',
     roleNormalized: member.roleNormalized || normalizeRole(member.role),
     loginId: member.loginId || '',
-    departmentId: member.departmentId || '',
-    slackUserId:
-      typeof member.slackUserId === 'string' && member.slackUserId.trim()
-        ? member.slackUserId.trim()
-        : typeof member.raw?.slack_user_id === 'string' && member.raw.slack_user_id.trim()
-        ? member.raw.slack_user_id.trim()
-        : ''
+    departmentId: member.departmentId || ''
   };
 };
 
@@ -1091,17 +1086,12 @@ const mapTeamMemberDoc = (doc) => {
     loginId,
     loginIdNormalized: normalizedLoginId,
     displayNameNormalized: normalizeKey(displayName),
-    accessCode: data.access_code || '',
+    // accessCode removed to prevent leakage
     role: rawRole,
     roleNormalized: normalizedRole,
     departmentId: data.department_id || '',
-    email: data.email || '',
-    slackUserId:
-      typeof data.slack_user_id === 'string'
-        ? data.slack_user_id.trim()
-        : typeof data.slackUserId === 'string'
-        ? data.slackUserId.trim()
-        : '',
+    // email removed from API response
+    // slackUserId removed from API response
     active: data.active !== false,
     identifiers,
     raw: data
@@ -1290,9 +1280,7 @@ const mapRegistration = (doc) => {
     github_login: data.github_login || '',
     github_profile_url: data.github_profile_url || data.profile_link || '',
     notes: data.notes || '',
-    ip: data.ip || '',
-    phone: data.phone || '',
-    dob: data.dob || '',
+    // ip, phone, dob removed to prevent sensitive data exposure
     tshirt_size: data.tshirt_size || data.size || '',
     heard_from: data.heard_from || '',
     checked_in_at:
@@ -1304,7 +1292,58 @@ const mapRegistration = (doc) => {
 };
 
 // --- Middleware ---
-app.use(cors());
+
+// Rate limiters for sensitive endpoints
+const loginRateLimiter = new RateLimiterMemory({
+  points: 10, // 10 attempts
+  duration: 60 * 15, // per 15 minutes
+  blockDuration: 60 * 15 // block for 15 minutes after limit
+});
+
+const registerRateLimiter = new RateLimiterMemory({
+  points: 5, // 5 registration attempts
+  duration: 60 * 60, // per hour
+  blockDuration: 60 * 30 // block for 30 minutes after limit
+});
+
+const rateLimitMiddleware = (limiter) => async (req, res, next) => {
+  const key = req.headers['x-forwarded-for']?.toString().split(',')[0] || req.socket.remoteAddress || 'unknown';
+  try {
+    await limiter.consume(key);
+    next();
+  } catch (_rlRejected) {
+    res.status(429).json({ ok: false, error: 'too_many_requests' });
+  }
+};
+
+// CORS configuration - restrict to allowed origins
+const allowedOrigins = [
+  SITE_URL,
+  'http://localhost:3000',
+  'http://127.0.0.1:3000'
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.some(allowed => origin === allowed || origin.endsWith('.vercel.app'))) {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS not allowed'), false);
+  },
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true,
+  optionsSuccessStatus: 200
+}));
+
+// Security headers
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable CSP for flexibility with inline scripts
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
@@ -1601,7 +1640,7 @@ app.get('/api/auth/github/profile/:token', (req, res) => {
 });
 
 // register
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', rateLimitMiddleware(registerRateLimiter), async (req, res) => {
   const payload = req.body || {};
 
   if (!REGISTRATION_OPEN) {
@@ -1818,7 +1857,7 @@ const teamAuth = async (req, res, next) => {
   next();
 };
 
-app.post('/api/team/login', async (req, res) => {
+app.post('/api/team/login', rateLimitMiddleware(loginRateLimiter), async (req, res) => {
   if (!ensureTeamEnabled(res)) return;
   const { email = '', code = '' } = req.body || {};
   const normalizedIdentifier = normalizeKey(email);
@@ -2897,7 +2936,7 @@ function adminAuth(req, res, next){
   return res.status(501).json({ ok:false, error:'admin_credentials_not_set' });
 }
 
-app.post('/api/admin/login', (req, res) => {
+app.post('/api/admin/login', rateLimitMiddleware(loginRateLimiter), (req, res) => {
   if (!ADMIN_TOKEN) {
     return res.status(501).json({ ok:false, error:'admin_credentials_not_set' });
   }
